@@ -41,20 +41,28 @@ SETUP STEPS:
 2. Backend Setup:
    - Navigate to backend folder: cd backend
    - Install dependencies: npm install
-   - Edit backend/.env file:
-     * Add the PostgreSQL password to DB_PASSWORD
+   - Configure backend/.env file with your credentials:
+     * DB_PASSWORD=YOUR_DATABASE_PASSWORD
    - Start server: npm start
    - Verify at http://localhost:3000/api/health
 
 3. Frontend Setup:
    - Return to root: cd ..
    - Install dependencies: npm install
-   - Edit src/services/visionApi.js:
-     * Add your Google Cloud Vision API key (line 4)
-   - Edit src/services/api.js:
+   - Configure .env file in root directory with your API keys:
+     * FIREBASE_API_KEY=your_firebase_api_key
+     * FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+     * FIREBASE_PROJECT_ID=your_project_id
+     * FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+     * FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+     * FIREBASE_APP_ID=your_app_id
+     * GOOGLE_VISION_API_KEY=your_google_vision_api_key
+   - Configure src/config/firebase.js:
+     * Replace all "YOUR_FIREBASE_*" placeholders with your Firebase credentials
+   - Configure src/services/visionApi.js:
+     * Replace "YOUR_GOOGLE_VISION_API_KEY" (line 7) with your Google Vision API key
+   - Configure src/services/api.js:
      * Update IP address to your computer's local IP (line 10)
-   - Edit src/config/firebase.js:
-     * Add your Firebase project credentials
 
 4. Run the App:
    - Start Expo: npx expo start
@@ -64,8 +72,11 @@ SETUP STEPS:
 
 REQUIRED CREDENTIALS:
 - Google Cloud Vision API key (enable Vision API in Google Cloud Console)
+  → Add to: .env (GOOGLE_VISION_API_KEY) and src/services/visionApi.js (line 7)
 - PostgreSQL password (set during PostgreSQL installation)
-- Firebase config (create project at console.firebase.google.com)
+  → Add to: backend/.env (DB_PASSWORD)
+- Firebase config (create project at console.firebase.google.com, enable Email/Password & Anonymous auth)
+  → Add to: .env (all FIREBASE_* variables) and src/config/firebase.js (replace all placeholders)
 
 
 
