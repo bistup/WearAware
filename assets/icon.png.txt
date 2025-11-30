@@ -1,0 +1,7 @@
+<!-- Placeholder icon file - Replace with actual 1024x1024 PNG -->
+<!-- For development, you can use a solid color or generate an icon at https://www.figma.com or Canva -->
+This is a placeholder for the app icon. 
+Please create a 1024x1024 PNG image with:
+- Background: #F5F5F0 (calm off-white)
+- Icon: Simple leaf or eco symbol in #7C9885 (muted green)
+- Minimalist design matching the app aesthetic

@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "WearAware",
+    "slug": "wearaware",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.wearaware.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "WearAware needs camera access to scan clothing care labels."
+      }
+    },
+    "android": {
+      "package": "com.wearaware.app",
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow WearAware to access your camera to scan clothing labels."
+        }
+      ]
+    ]
+  }
+}
