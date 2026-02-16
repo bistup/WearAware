@@ -1,0 +1,462 @@
+// author: caitriona mccann
+// date: 09/02/2026
+// gamification routes - achievements, challenges, leaderboards
+// incentivizes sustainable clothing choices through game mechanics
+
+const express = require('express');
+const router = express.Router();
+const pool = require('../database/db');
+const { getUserId } = require('../database/db');
+const cache = require('../cache');
+
+// --- achievements
+
+// GET /api/gamification/achievements - get all achievements with user progress
+router.get('/achievements', async (req, res) => {
+  const { firebaseUid } = req.query;
+
+  try {
+    const userId = await getUserId(firebaseUid);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const result = await pool.query(
+      `SELECT a.*, 
+              COALESCE(ua.progress, 0) as user_progress,
+              COALESCE(ua.unlocked, FALSE) as user_unlocked,
+              ua.unlocked_at,
+              ua.shared_to_feed
+       FROM achievements a
+       LEFT JOIN user_achievements ua ON ua.achievement_id = a.id AND ua.user_id = $1
+       ORDER BY a.category, a.threshold`,
+      [userId]
+    );
+
+    const achievements = result.rows.map(row => ({
+      id: row.id,
+      key: row.key,
+      title: row.title,
+      description: row.description,
+      icon: row.icon,
+      category: row.category,
+      threshold: row.threshold,
+      points: row.points,
+      progress: row.user_progress,
+      unlocked: row.user_unlocked,
+      unlockedAt: row.unlocked_at,
+      sharedToFeed: row.shared_to_feed,
+      progressPercent: Math.min(100, Math.round((row.user_progress / row.threshold) * 100)),
+    }));
+
+    // group by category
+    const grouped = {};
+    achievements.forEach(a => {
+      if (!grouped[a.category]) grouped[a.category] = [];
+      grouped[a.category].push(a);
+    });
+
+    res.json({
+      success: true,
+      achievements,
+      grouped,
+      totalPoints: achievements.filter(a => a.unlocked).reduce((sum, a) => sum + a.points, 0),
+      unlockedCount: achievements.filter(a => a.unlocked).length,
+      totalCount: achievements.length,
+    });
+  } catch (error) {
+    console.error('Error fetching achievements:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/gamification/achievements/check - check and update achievement progress
+// called after scans, shares, follows, etc.
+router.post('/achievements/check', async (req, res) => {
+  const { firebaseUid, eventType, eventData } = req.body;
+  // eventType: 'scan', 'share', 'follow', 'grade_a', 'wishlist_add'
+  // eventData: { grade, score, waterSaved, carbonSaved, ... }
+
+  try {
+    const userId = await getUserId(firebaseUid);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const newlyUnlocked = [];
+
+    // get all achievements
+    const achievements = await pool.query('SELECT * FROM achievements');
+
+    for (const achievement of achievements.rows) {
+      // ensure user_achievements row exists
+      await pool.query(
+        `INSERT INTO user_achievements (user_id, achievement_id, progress)
+         VALUES ($1, $2, 0)
+         ON CONFLICT (user_id, achievement_id) DO NOTHING`,
+        [userId, achievement.id]
+      );
+
+      // calculate progress increment based on event type and achievement key
+      let increment = 0;
+
+      switch (achievement.key) {
+        case 'first_scan':
+        case 'scan_5':
+        case 'scan_25':
+        case 'scan_100':
+          if (eventType === 'scan') increment = 1;
+          break;
+        case 'grade_a_first':
+        case 'grade_a_10':
+          if (eventType === 'scan' && eventData?.grade === 'A') increment = 1;
+          break;
+        case 'first_share':
+        case 'share_10':
+          if (eventType === 'share') increment = 1;
+          break;
+        case 'first_follow':
+          if (eventType === 'follow') increment = 1;
+          break;
+        case 'followers_10':
+          if (eventType === 'gained_follower') increment = 1;
+          break;
+        case 'water_saver':
+          if (eventType === 'scan' && eventData?.waterSaved > 0) {
+            increment = Math.round(eventData.waterSaved);
+          }
+          break;
+        case 'carbon_cutter':
+          if (eventType === 'scan' && eventData?.carbonSaved > 0) {
+            increment = Math.round(eventData.carbonSaved * 100) / 100;
+          }
+          break;
+        case 'wishlist_5':
+          if (eventType === 'wishlist_add') increment = 1;
+          break;
+        default:
+          break;
+      }
+
+      if (increment > 0) {
+        // update progress
+        const updateResult = await pool.query(
+          `UPDATE user_achievements 
+           SET progress = progress + $1, updated_at = CURRENT_TIMESTAMP
+           WHERE user_id = $2 AND achievement_id = $3 AND unlocked = FALSE
+           RETURNING progress`,
+          [increment, userId, achievement.id]
+        );
+
+        if (updateResult.rows.length > 0) {
+          const newProgress = updateResult.rows[0].progress;
+          
+          // check if threshold reached
+          if (newProgress >= achievement.threshold) {
+            await pool.query(
+              `UPDATE user_achievements 
+               SET unlocked = TRUE, unlocked_at = CURRENT_TIMESTAMP
+               WHERE user_id = $1 AND achievement_id = $2`,
+              [userId, achievement.id]
+            );
+
+            newlyUnlocked.push({
+              key: achievement.key,
+              title: achievement.title,
+              description: achievement.description,
+              icon: achievement.icon,
+              points: achievement.points,
+            });
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      newlyUnlocked,
+      hasNewAchievements: newlyUnlocked.length > 0,
+    });
+  } catch (error) {
+    console.error('Error checking achievements:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/gamification/achievements/:achievementId/share - share achievement to feed
+router.post('/achievements/:achievementId/share', async (req, res) => {
+  const { achievementId } = req.params;
+  const { firebaseUid } = req.body;
+
+  try {
+    const userId = await getUserId(firebaseUid);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    // verify achievement is unlocked
+    const ua = await pool.query(
+      `SELECT ua.*, a.title, a.icon, a.description
+       FROM user_achievements ua
+       JOIN achievements a ON a.id = ua.achievement_id
+       WHERE ua.user_id = $1 AND ua.achievement_id = $2 AND ua.unlocked = TRUE`,
+      [userId, achievementId]
+    );
+
+    if (ua.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Achievement not found or not unlocked' });
+    }
+
+    // create a post for the achievement
+    const caption = `Achievement Unlocked: ${ua.rows[0].icon} ${ua.rows[0].title} - ${ua.rows[0].description}`;
+    await pool.query(
+      `INSERT INTO scan_posts (user_id, caption, visibility)
+       VALUES ($1, $2, 'public')`,
+      [userId, caption]
+    );
+
+    // mark as shared
+    await pool.query(
+      'UPDATE user_achievements SET shared_to_feed = TRUE WHERE user_id = $1 AND achievement_id = $2',
+      [userId, achievementId]
+    );
+
+    res.json({ success: true, message: 'Achievement shared to feed' });
+  } catch (error) {
+    console.error('Error sharing achievement:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- challenges
+
+// GET /api/gamification/challenges - get active challenges
+router.get('/challenges', async (req, res) => {
+  const { firebaseUid } = req.query;
+
+  try {
+    const userId = await getUserId(firebaseUid);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const result = await pool.query(
+      `SELECT c.*,
+              COALESCE(uc.progress, 0) as user_progress,
+              COALESCE(uc.completed, FALSE) as user_completed,
+              uc.completed_at
+       FROM challenges c
+       LEFT JOIN user_challenges uc ON uc.challenge_id = c.id AND uc.user_id = $1
+       WHERE c.ends_at > NOW()
+       ORDER BY c.ends_at ASC`,
+      [userId]
+    );
+
+    const challenges = result.rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      icon: row.icon,
+      type: row.challenge_type,
+      goalType: row.goal_type,
+      goalValue: row.goal_value,
+      points: row.points,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
+      progress: row.user_progress,
+      completed: row.user_completed,
+      completedAt: row.completed_at,
+      progressPercent: Math.min(100, Math.round((row.user_progress / row.goal_value) * 100)),
+      daysRemaining: Math.max(0, Math.ceil((new Date(row.ends_at) - new Date()) / (1000 * 60 * 60 * 24))),
+    }));
+
+    res.json({
+      success: true,
+      challenges,
+    });
+  } catch (error) {
+    console.error('Error fetching challenges:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/gamification/challenges/:challengeId/join - join a challenge
+router.post('/challenges/:challengeId/join', async (req, res) => {
+  const { challengeId } = req.params;
+  const { firebaseUid } = req.body;
+
+  try {
+    const userId = await getUserId(firebaseUid);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    await pool.query(
+      `INSERT INTO user_challenges (user_id, challenge_id)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id, challenge_id) DO NOTHING`,
+      [userId, challengeId]
+    );
+
+    res.json({ success: true, message: 'Joined challenge' });
+  } catch (error) {
+    console.error('Error joining challenge:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/gamification/challenges/update-progress - update challenge progress
+router.post('/challenges/update-progress', async (req, res) => {
+  const { firebaseUid, eventType, value } = req.body;
+
+  try {
+    const userId = await getUserId(firebaseUid);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    // find active joined challenges matching event type
+    const goalTypeMap = {
+      scan: 'scan_count',
+      share: 'share_count',
+      water_saved: 'water_saved',
+      carbon_saved: 'carbon_saved',
+    };
+
+    const goalType = goalTypeMap[eventType];
+    if (!goalType) {
+      return res.json({ success: true, updated: 0 });
+    }
+
+    const activeChallenges = await pool.query(
+      `SELECT uc.id, uc.progress, c.goal_value, c.points, c.title
+       FROM user_challenges uc
+       JOIN challenges c ON c.id = uc.challenge_id
+       WHERE uc.user_id = $1 
+         AND c.goal_type = $2
+         AND c.ends_at > NOW()
+         AND uc.completed = FALSE`,
+      [userId, goalType]
+    );
+
+    const completed = [];
+    for (const challenge of activeChallenges.rows) {
+      const newProgress = challenge.progress + (value || 1);
+      const isCompleted = newProgress >= challenge.goal_value;
+
+      await pool.query(
+        `UPDATE user_challenges 
+         SET progress = $1, completed = $2, completed_at = $3, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $4`,
+        [
+          newProgress,
+          isCompleted,
+          isCompleted ? new Date() : null,
+          challenge.id,
+        ]
+      );
+
+      if (isCompleted) {
+        completed.push({
+          title: challenge.title,
+          points: challenge.points,
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      updated: activeChallenges.rows.length,
+      completedChallenges: completed,
+    });
+  } catch (error) {
+    console.error('Error updating challenge progress:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- leaderboard
+
+// GET /api/gamification/leaderboard - get leaderboard
+router.get('/leaderboard', async (req, res) => {
+  const { period, firebaseUid } = req.query;
+  // period: 'weekly', 'monthly', 'alltime'
+  const periodType = period || 'weekly';
+
+  try {
+    const userId = firebaseUid ? await getUserId(firebaseUid) : null;
+
+    // try cache
+    const cacheKey = `leaderboard:${periodType}`;
+    const cached = await cache.getCached(cacheKey);
+    if (cached) {
+      return res.json({ success: true, leaderboard: cached, cached: true });
+    }
+
+    let dateFilter;
+    switch (periodType) {
+      case 'weekly':
+        dateFilter = "s.created_at > NOW() - INTERVAL '7 days'";
+        break;
+      case 'monthly':
+        dateFilter = "s.created_at > NOW() - INTERVAL '30 days'";
+        break;
+      default:
+        dateFilter = '1=1'; // all time
+    }
+
+    const result = await pool.query(
+      `SELECT 
+        u.firebase_uid,
+        u.email,
+        up.display_name,
+        up.avatar_url,
+        COUNT(s.id) as scan_count,
+        ROUND(AVG(s.environmental_score)) as avg_score,
+        COALESCE(SUM(
+          CASE WHEN a_unlocked.points IS NOT NULL THEN a_unlocked.points ELSE 0 END
+        ), 0) as achievement_points,
+        ROW_NUMBER() OVER (ORDER BY ROUND(AVG(s.environmental_score)) DESC, COUNT(s.id) DESC) as rank
+       FROM users u
+       LEFT JOIN user_profiles up ON up.user_id = u.id
+       JOIN scans s ON s.firebase_uid = u.firebase_uid AND ${dateFilter}
+       LEFT JOIN (
+         SELECT ua.user_id, SUM(a.points) as points
+         FROM user_achievements ua
+         JOIN achievements a ON a.id = ua.achievement_id
+         WHERE ua.unlocked = TRUE
+         GROUP BY ua.user_id
+       ) a_unlocked ON a_unlocked.user_id = u.id
+       GROUP BY u.id, u.firebase_uid, u.email, up.display_name, up.avatar_url, a_unlocked.points
+       HAVING COUNT(s.id) > 0
+       ORDER BY avg_score DESC, scan_count DESC
+       LIMIT 50`
+    );
+
+    const leaderboard = result.rows.map(row => ({
+      rank: parseInt(row.rank),
+      firebaseUid: row.firebase_uid,
+      email: row.email,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+      scanCount: parseInt(row.scan_count),
+      avgScore: parseInt(row.avg_score),
+      achievementPoints: parseInt(row.achievement_points),
+      isCurrentUser: userId ? row.firebase_uid === firebaseUid : false,
+    }));
+
+    // cache for 5 minutes
+    await cache.setCached(cacheKey, leaderboard, 300);
+
+    res.json({
+      success: true,
+      leaderboard,
+      period: periodType,
+    });
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+module.exports = router;

@@ -1,0 +1,7 @@
+<!-- Placeholder splash screen - Replace with actual 1284x2778 PNG -->
+This is a placeholder for the splash screen.
+Please create a 1284x2778 PNG image with:
+- Background: #F5F5F0 (calm off-white)
+- Center: "WearAware" text in clean typography
+- Subtitle: "Sustainable Fashion Scanner" in smaller text
+- Optional: Small eco icon
