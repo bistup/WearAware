@@ -4,7 +4,7 @@
 // shows scan grade, brand, author info, likes, comments
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import Card from './Card';
 import GradeIndicator from './GradeIndicator';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
@@ -47,6 +47,15 @@ const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid 
           <Text style={styles.timestamp}>{timeAgo}</Text>
         </View>
       </TouchableOpacity>
+
+      {/* Scan Image */}
+      {post.scan?.imageUrl && (
+        <Image
+          source={{ uri: post.scan.imageUrl }}
+          style={styles.scanImage}
+          resizeMode="cover"
+        />
+      )}
 
       {/* Scan Data */}
       {post.scan && (
@@ -155,6 +164,13 @@ const styles = StyleSheet.create({
   timestamp: {
     ...typography.caption,
     color: colors.textTertiary,
+  },
+  scanImage: {
+    width: '100%',
+    height: 250,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.surface,
   },
   scanPreview: {
     backgroundColor: colors.surfaceSecondary,

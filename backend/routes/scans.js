@@ -132,6 +132,8 @@ router.post('/', async (req, res) => {
     fibers,
     rawText,
     scanType,
+    imageUrl,
+    thumbnailUrl,
   } = req.body;
 
   if (!firebaseUid || !fibers || fibers.length === 0) {
@@ -180,11 +182,11 @@ router.post('/', async (req, res) => {
 
     // save to database
     const result = await pool.query(
-      `INSERT INTO scans 
-       (user_id, firebase_uid, brand, item_type, item_weight_grams, fibers, 
+      `INSERT INTO scans
+       (user_id, firebase_uid, brand, item_type, item_weight_grams, fibers,
         environmental_score, environmental_grade, raw_text, scan_type,
-        water_usage_liters, carbon_footprint_kg)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        water_usage_liters, carbon_footprint_kg, image_url, thumbnail_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         userId,
@@ -199,6 +201,8 @@ router.post('/', async (req, res) => {
         scanType || 'camera',
         impact.waterUsage,
         impact.carbonFootprint,
+        imageUrl || null,
+        thumbnailUrl || null,
       ]
     );
 
@@ -216,6 +220,8 @@ router.post('/', async (req, res) => {
         item_weight_grams: parseInt(result.rows[0].item_weight_grams),
         scanType: result.rows[0].scan_type,
         rawText: result.rows[0].raw_text,
+        imageUrl: result.rows[0].image_url,
+        thumbnailUrl: result.rows[0].thumbnail_url,
         createdAt: result.rows[0].created_at,
       },
       scanId: result.rows[0].id,
@@ -276,6 +282,8 @@ router.get('/history/:firebaseUid', async (req, res) => {
       carbon_footprint_kg: parseFloat(scan.carbon_footprint_kg),
       item_weight_grams: parseInt(scan.item_weight_grams),
       scanType: scan.scan_type,
+      imageUrl: scan.image_url,
+      thumbnailUrl: scan.thumbnail_url,
       createdAt: scan.created_at,
     }));
 
@@ -427,6 +435,190 @@ router.delete('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting scan:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// VISUAL SIMILARITY ENDPOINTS
+// ============================================================================
+
+const mlService = require('../services/mlService');
+
+// create visual scan (scans full garment image for style matching)
+router.post('/visual-scan', async (req, res) => {
+  const {
+    firebaseUid,
+    imageUrl,
+    itemType,
+    brand,
+    itemWeightGrams,
+  } = req.body;
+
+  if (!firebaseUid || !imageUrl) {
+    return res.status(400).json({ error: 'Missing required fields: firebaseUid, imageUrl' });
+  }
+
+  try {
+    // find user id
+    let userId = null;
+    const userResult = await pool.query(
+      'SELECT id FROM users WHERE firebase_uid = $1',
+      [firebaseUid]
+    );
+
+    if (userResult.rows.length > 0) {
+      userId = userResult.rows[0].id;
+    }
+
+    // get item weight
+    let itemWeight = itemWeightGrams || 300;
+    if (!itemWeightGrams && itemType) {
+      const itemTypeQuery = await pool.query(
+        'SELECT estimated_weight_grams FROM item_types WHERE LOWER(name) = LOWER($1)',
+        [itemType]
+      );
+      if (itemTypeQuery.rows.length > 0) {
+        itemWeight = itemTypeQuery.rows[0].estimated_weight_grams;
+      }
+    }
+
+    // extract CLIP embedding from image
+    console.log('Extracting embedding for:', imageUrl);
+    const embeddingResult = await mlService.extractEmbedding(imageUrl);
+
+    if (!embeddingResult.success) {
+      return res.status(500).json({
+        error: 'Failed to extract visual features',
+        details: embeddingResult.error,
+      });
+    }
+
+    // create scan with image and embedding (no fiber data for visual scans)
+    const result = await pool.query(
+      `INSERT INTO scans
+       (user_id, firebase_uid, brand, item_type, item_weight_grams, fibers,
+        scan_type, image_url, image_embedding)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        userId,
+        firebaseUid,
+        brand || 'Unknown',
+        itemType || 'Garment',
+        itemWeight,
+        JSON.stringify([]), // empty fibers array for visual scans
+        'visual',
+        imageUrl,
+        JSON.stringify(embeddingResult.embedding),
+      ]
+    );
+
+    // invalidate user's history cache (skip if Redis unavailable)
+    try {
+      await Promise.race([
+        cache.invalidateCached(cache.keys.history(firebaseUid)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Cache timeout')), 1000))
+      ]);
+    } catch (err) {
+      console.log('Cache invalidation skipped:', err.message);
+    }
+
+    res.json({
+      success: true,
+      scanId: result.rows[0].id,
+      scan: {
+        id: result.rows[0].id,
+        brand: result.rows[0].brand,
+        itemType: result.rows[0].item_type,
+        imageUrl: result.rows[0].image_url,
+        scanType: result.rows[0].scan_type,
+        createdAt: result.rows[0].created_at,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating visual scan:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// get visually similar sustainable recommendations
+router.get('/visual-recommendations/:scanId', async (req, res) => {
+  const { scanId } = req.params;
+  const { limit = 10 } = req.query;
+
+  try {
+    // get scan with embedding
+    const scanResult = await pool.query(
+      'SELECT id, item_type, image_embedding, environmental_score FROM scans WHERE id = $1',
+      [scanId]
+    );
+
+    if (scanResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Scan not found' });
+    }
+
+    const scan = scanResult.rows[0];
+
+    if (!scan.image_embedding) {
+      return res.status(400).json({ error: 'Scan does not have visual embedding' });
+    }
+
+    // get all alternatives of same type with embeddings
+    const alternativesResult = await pool.query(
+      `SELECT id, brand, product_name, item_type, image_url, thumbnail_url,
+              sustainability_grade, sustainability_score, price_usd,
+              external_url, primary_fiber, image_embedding,
+              water_usage_liters, carbon_footprint_kg
+       FROM product_recommendations
+       WHERE item_type = $1
+         AND image_embedding IS NOT NULL`,
+      [scan.item_type]
+    );
+
+    if (alternativesResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        recommendations: [],
+        message: 'No alternatives with visual data found for this item type',
+      });
+    }
+
+    // calculate similarity scores
+    const queryEmbedding = scan.image_embedding;
+    const recommendations = mlService.findMostSimilar(
+      queryEmbedding,
+      alternativesResult.rows,
+      parseInt(limit)
+    );
+
+    // format response
+    const formattedRecs = recommendations.map((rec) => ({
+      id: rec.id,
+      brand: rec.brand,
+      productName: rec.product_name,
+      itemType: rec.item_type,
+      imageUrl: rec.image_url,
+      thumbnailUrl: rec.thumbnail_url,
+      sustainabilityGrade: rec.sustainability_grade,
+      sustainabilityScore: rec.sustainability_score,
+      priceUsd: parseFloat(rec.price_usd),
+      externalUrl: rec.external_url,
+      primaryFiber: rec.primary_fiber,
+      waterUsageLiters: parseFloat(rec.water_usage_liters),
+      carbonFootprintKg: parseFloat(rec.carbon_footprint_kg),
+      visualSimilarity: Math.round(rec.similarity_score * 100) / 100, // 0-1 scale
+      matchPercentage: Math.round(rec.similarity_score * 100), // 0-100 scale
+    }));
+
+    res.json({
+      success: true,
+      recommendations: formattedRecs,
+      matchType: 'visual',
+      count: formattedRecs.length,
+    });
+  } catch (error) {
+    console.error('Error getting visual recommendations:', error);
     res.status(500).json({ error: error.message });
   }
 });

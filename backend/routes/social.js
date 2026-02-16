@@ -441,6 +441,7 @@ router.get('/feed', async (req, res) => {
     const result = await pool.query(
       `SELECT sp.*, s.brand, s.item_type, s.environmental_grade, s.environmental_score,
               s.water_usage_liters, s.carbon_footprint_kg, s.fibers,
+              s.image_url, s.thumbnail_url,
               u.firebase_uid as author_uid, u.email as author_email,
               up.display_name as author_name, up.avatar_url as author_avatar,
               (SELECT COUNT(*) FROM likes l WHERE l.post_id = sp.id) as like_count,

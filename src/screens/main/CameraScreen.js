@@ -16,6 +16,7 @@ import { processImageHybrid } from '../../services/hybridOcr';
 import { saveScanToBackend } from '../../services/api';
 import { calculateImpactScore } from '../../utils/impactCalculator';
 import { ITEM_TYPES } from '../../constants/constants';
+import { uploadScanImages } from '../../services/imageUpload';
 
 const CameraScreen = () => {
   const navigation = useNavigation();
@@ -184,9 +185,18 @@ const CameraScreen = () => {
   // shared image processing logic for camera and gallery (sustainability scan)
   const processImage = async (imageUri) => {
     try {
+      // upload image to Firebase Storage first
+      console.log('Uploading image to Firebase Storage...');
+      const uploadResult = await uploadScanImages(imageUri, Date.now().toString());
+
+      if (!uploadResult.success) {
+        console.warn('Image upload failed:', uploadResult.error);
+        // Continue with scan even if upload fails
+      }
+
       // process with hybrid OCR (automatically picks best method)
       const ocrResult = await processImageHybrid(imageUri);
-      
+
       console.log(`Scan processed with: ${ocrResult.method}`);
       const mlKitResult = ocrResult;
       
@@ -234,6 +244,8 @@ const CameraScreen = () => {
         brand: brandName.trim(),
         itemType: selectedItemType.name,
         itemWeightGrams: selectedItemType.weight,
+        imageUrl: uploadResult.success ? uploadResult.imageUrl : null,
+        thumbnailUrl: uploadResult.success ? uploadResult.thumbnailUrl : null,
       };
 
       // save to backend

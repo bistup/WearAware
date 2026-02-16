@@ -72,6 +72,8 @@ export const saveScanToBackend = async (scanData) => {
       fibers: scanData.fibers,
       rawText: scanData.rawText,
       scanType: scanData.scanType || 'camera',
+      imageUrl: scanData.imageUrl,
+      thumbnailUrl: scanData.thumbnailUrl,
     }),
   });
   return data.success ? { success: true, scanId: data.scanId, scan: data.scan } : data;

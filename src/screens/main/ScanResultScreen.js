@@ -6,7 +6,7 @@
 // added: share to community + alternatives prompt for low-grade scans
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Card from '../../components/Card';
@@ -218,6 +218,15 @@ const ScanResultScreen = () => {
         </TouchableOpacity>
 
         <Text style={styles.title}>Scan Results</Text>
+
+        {/* Scan Image */}
+        {updatedScanData?.imageUrl && (
+          <Image
+            source={{ uri: updatedScanData.imageUrl }}
+            style={styles.scanImage}
+            resizeMode="cover"
+          />
+        )}
 
         {/* Tab Selector */}
         {hasCareInstructions && (
@@ -557,6 +566,13 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h1,
     marginBottom: spacing.lg,
+  },
+  scanImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surface,
   },
   gradeCard: {
     marginBottom: spacing.md,

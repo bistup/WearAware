@@ -4,7 +4,7 @@
 // loads from backend if logged in, otherwise uses local storage for guest mode
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
@@ -131,6 +131,13 @@ const HistoryScreen = () => {
                   {isSelected && <Text style={styles.checkmark}>✓</Text>}
                 </View>
               </View>
+            )}
+            {item.thumbnailUrl && (
+              <Image
+                source={{ uri: item.thumbnailUrl }}
+                style={styles.thumbnail}
+                resizeMode="cover"
+              />
             )}
             <View style={styles.scanInfo}>
               <Text style={styles.brand}>{item.brand || 'Unknown Brand'}</Text>
@@ -362,6 +369,13 @@ const getStyles = (colors, typography, spacing) => StyleSheet.create({
   },
   checkboxContainer: {
     marginRight: spacing.md,
+  },
+  thumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: borderRadius.md,
+    marginRight: spacing.md,
+    backgroundColor: colors.surface,
   },
   checkbox: {
     width: 24,
