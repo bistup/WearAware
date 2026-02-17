@@ -4,8 +4,8 @@
 
 import { auth } from '../config/firebase';
 
-// update this to your computer's local ip when running on phone
-const BACKEND_API_URL = 'http://192.168.1.13:3000/api';
+// dev server on Proxmox LXC
+const BACKEND_API_URL = 'http://YOUR_SERVER_IP:3000/api';
 
 const getUid = () => auth.currentUser?.uid;
 

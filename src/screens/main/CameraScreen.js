@@ -187,11 +187,14 @@ const CameraScreen = () => {
     try {
       // upload image to Firebase Storage first
       console.log('Uploading image to Firebase Storage...');
-      const uploadResult = await uploadScanImages(imageUri, Date.now().toString());
-
-      if (!uploadResult.success) {
-        console.warn('Image upload failed:', uploadResult.error);
-        // Continue with scan even if upload fails
+      let uploadResult = { success: false };
+      try {
+        uploadResult = await uploadScanImages(imageUri, Date.now().toString());
+        if (!uploadResult.success) {
+          console.warn('Image upload failed:', uploadResult.error);
+        }
+      } catch (uploadErr) {
+        console.warn('Image upload error:', uploadErr.message);
       }
 
       // process with hybrid OCR (automatically picks best method)

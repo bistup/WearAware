@@ -132,9 +132,9 @@ const HistoryScreen = () => {
                 </View>
               </View>
             )}
-            {item.thumbnailUrl && (
+            {(item.thumbnailUrl || item.thumbnail_url) && (
               <Image
-                source={{ uri: item.thumbnailUrl }}
+                source={{ uri: item.thumbnailUrl || item.thumbnail_url }}
                 style={styles.thumbnail}
                 resizeMode="cover"
               />

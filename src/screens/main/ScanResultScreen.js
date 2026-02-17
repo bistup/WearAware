@@ -220,9 +220,9 @@ const ScanResultScreen = () => {
         <Text style={styles.title}>Scan Results</Text>
 
         {/* Scan Image */}
-        {updatedScanData?.imageUrl && (
+        {(updatedScanData?.imageUrl || updatedScanData?.image_url) && (
           <Image
-            source={{ uri: updatedScanData.imageUrl }}
+            source={{ uri: updatedScanData.imageUrl || updatedScanData.image_url }}
             style={styles.scanImage}
             resizeMode="cover"
           />
