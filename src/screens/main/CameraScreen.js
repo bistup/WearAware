@@ -4,7 +4,7 @@
 // connects to google vision api to read the text from clothing labels
 
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Modal, FlatList, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Modal, FlatList, ScrollView, Image } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,16 +17,23 @@ import { saveScanToBackend } from '../../services/api';
 import { calculateImpactScore } from '../../utils/impactCalculator';
 import { ITEM_TYPES } from '../../constants/constants';
 import { uploadScanImages } from '../../services/imageUpload';
+import { useAuth } from '../../context/AuthContext';
 
 const CameraScreen = () => {
   const navigation = useNavigation();
+  const { isGuest } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
   const [showPreScanForm, setShowPreScanForm] = useState(true);
   const [brandName, setBrandName] = useState('');
   const [selectedItemType, setSelectedItemType] = useState(null);
-  const [scanMode, setScanMode] = useState('sustainability'); // 'sustainability' or 'care'
+  const [selectedGender, setSelectedGender] = useState(null); // 'mens' or 'womens'
+  const [scanMode, setScanMode] = useState('full'); // 'full' or 'care'
   const cameraRef = useRef(null);
+
+  // two-step flow state for full scan
+  const [scanStep, setScanStep] = useState('label'); // 'label' or 'garment'
+  const [labelScanData, setLabelScanData] = useState(null); // stores OCR result from step 1
 
   // start scanning after user makes selection
   const handleStartScanning = () => {
@@ -36,7 +43,7 @@ const CameraScreen = () => {
       return;
     }
 
-    // sustainability scan requires brand and item type
+    // full scan requires brand and item type
     if (!brandName.trim()) {
       Alert.alert('Required', 'Please enter the brand name');
       return;
@@ -45,13 +52,15 @@ const CameraScreen = () => {
       Alert.alert('Required', 'Please select an item type');
       return;
     }
+    // start at step 1 (label scan)
+    setScanStep('label');
+    setLabelScanData(null);
     setShowPreScanForm(false);
   };
 
   // pick image from gallery
   const handlePickImage = async () => {
     if (scanMode === 'care') {
-      // care instructions scan doesn't need brand/item type
       try {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: 'images',
@@ -72,32 +81,55 @@ const CameraScreen = () => {
       return;
     }
 
-    // sustainability scan requires brand and item type
-    if (!brandName.trim()) {
-      Alert.alert('Required', 'Please enter the brand name');
-      return;
-    }
-    if (!selectedItemType) {
-      Alert.alert('Required', 'Please select an item type');
-      return;
-    }
-
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'images',
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setLoading(true);
-        const imageUri = result.assets[0].uri;
-        await processImage(imageUri);
+    // full scan mode - validate brand/item type before proceeding
+    if (showPreScanForm) {
+      if (!brandName.trim()) {
+        Alert.alert('Required', 'Please enter the brand name');
+        return;
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
-      console.error('Image picker error:', error);
+      if (!selectedItemType) {
+        Alert.alert('Required', 'Please select an item type');
+        return;
+      }
+    }
+
+    // full scan mode - depends on which step we're at
+    if (scanStep === 'label') {
+      // step 1: pick label image for OCR
+      try {
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: 'images',
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets[0]) {
+          setLoading(true);
+          await processLabelImage(result.assets[0].uri);
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to pick image');
+        console.error('Image picker error:', error);
+      }
+    } else {
+      // step 2: pick garment photo
+      try {
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: 'images',
+          allowsEditing: true,
+          aspect: [3, 4],
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets[0]) {
+          setLoading(true);
+          await processGarmentImage(result.assets[0].uri);
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to pick image');
+        console.error('Image picker error:', error);
+      }
     }
   };
 
@@ -116,7 +148,7 @@ const CameraScreen = () => {
           <Button title="Grant Permission" onPress={requestPermission} />
           <Button
             title="Go Back"
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home')}
             variant="secondary"
             style={styles.backButton}
           />
@@ -125,21 +157,24 @@ const CameraScreen = () => {
     );
   }
 
-  // capture photo and process with hybrid OCR (Vision API online, ML Kit offline)
+  // capture photo and process based on current mode/step
   const handleCapture = async () => {
     if (!cameraRef.current || loading) return;
 
     try {
       setLoading(true);
-      // take photo and save to file system
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
       });
 
       if (scanMode === 'care') {
         await processCareInstructionsImage(photo.uri);
+      } else if (scanStep === 'label') {
+        // step 1: scan the label for fibers/OCR
+        await processLabelImage(photo.uri);
       } else {
-        await processImage(photo.uri);
+        // step 2: photograph the garment
+        await processGarmentImage(photo.uri);
       }
     } catch (error) {
       setLoading(false);
@@ -182,79 +217,106 @@ const CameraScreen = () => {
     }
   };
 
-  // shared image processing logic for camera and gallery (sustainability scan)
-  const processImage = async (imageUri) => {
+  // =====================================================================
+  // STEP 1: Process label image with OCR (extracts fibers, country)
+  // =====================================================================
+  const processLabelImage = async (imageUri) => {
     try {
-      // upload image to Firebase Storage first
-      console.log('Uploading image to Firebase Storage...');
+      // process with hybrid OCR (Vision API online, manual fallback offline)
+      const ocrResult = await processImageHybrid(imageUri);
+
+      console.log(`Label scan processed with: ${ocrResult.method}`);
+
+      if (!ocrResult.success) {
+        setLoading(false);
+        Alert.alert(
+          'Scan Failed',
+          ocrResult.error || 'Could not detect text from the label. Would you like to try again or enter details manually?',
+          [
+            { text: 'Try Again', style: 'default' },
+            {
+              text: 'Manual Input',
+              onPress: () => navigation.replace('ManualInput'),
+            },
+          ]
+        );
+        return;
+      }
+
+      // check for fiber data
+      if (!ocrResult.data.fibers || ocrResult.data.fibers.length === 0) {
+        setLoading(false);
+        Alert.alert(
+          'No Fiber Information Detected',
+          'We couldn\'t detect fiber composition from this label. Would you like to try again or enter manually?',
+          [
+            { text: 'Try Again', style: 'default' },
+            {
+              text: 'Manual Input',
+              onPress: () => navigation.replace('ManualInput'),
+            },
+          ]
+        );
+        return;
+      }
+
+      // store OCR result and advance to step 2 (garment photo)
+      setLabelScanData(ocrResult.data);
+      setScanStep('garment');
+      setShowPreScanForm(false);
+      setLoading(false);
+    } catch (error) {
+      setLoading(false);
+      Alert.alert('Error', 'Failed to process label image: ' + error.message);
+      console.error('Label scan error:', error);
+    }
+  };
+
+  // =====================================================================
+  // STEP 2: Process garment image (upload + save combined scan)
+  // =====================================================================
+  const processGarmentImage = async (imageUri) => {
+    if (isGuest) {
+      setLoading(false);
+      Alert.alert('Sign In Required', 'Create an account to save scans. Image upload requires authentication.');
+      return;
+    }
+
+    if (!labelScanData) {
+      setLoading(false);
+      Alert.alert('Missing Label Scan', 'Please scan the care label first before photographing the garment.');
+      setScanStep('label');
+      return;
+    }
+
+    try {
+      // upload garment image to Firebase Storage
+      console.log('Uploading garment image to Firebase Storage...');
       let uploadResult = { success: false };
       try {
         uploadResult = await uploadScanImages(imageUri, Date.now().toString());
         if (!uploadResult.success) {
-          console.warn('Image upload failed:', uploadResult.error);
+          console.warn('Garment image upload failed:', uploadResult.error);
         }
       } catch (uploadErr) {
-        console.warn('Image upload error:', uploadErr.message);
+        console.warn('Garment image upload error:', uploadErr.message);
       }
 
-      // process with hybrid OCR (automatically picks best method)
-      const ocrResult = await processImageHybrid(imageUri);
-
-      console.log(`Scan processed with: ${ocrResult.method}`);
-      const mlKitResult = ocrResult;
-      
-      // check if ML Kit failed
-      if (!mlKitResult.success) {
-        setLoading(false);
-        Alert.alert(
-          'Scan Failed',
-          mlKitResult.error || 'Could not detect text from the label. Would you like to try again or enter details manually?',
-          [
-            { text: 'Try Again', style: 'default' },
-            {
-              text: 'Manual Input',
-              onPress: () => {
-                navigation.replace('ManualInput');
-              },
-            },
-          ]
-        );
-        return;
-      }
-
-      // check if fibers were detected from the label
-      if (!mlKitResult.data.fibers || mlKitResult.data.fibers.length === 0) {
-        setLoading(false);
-        Alert.alert(
-          'No Fiber Information Detected',
-          'We couldn\'t detect fiber composition from this label. Would you like to try scanning again or enter the details manually?',
-          [
-            { text: 'Try Again', style: 'default' },
-            {
-              text: 'Manual Input',
-              onPress: () => {
-                navigation.replace('ManualInput');
-              },
-            },
-          ]
-        );
-        return;
-      }
-
-      // combine ML Kit data with pre-scan form data
+      // combine label OCR data with garment image and form data
       const scanData = {
-        ...mlKitResult.data,
+        ...labelScanData,
         brand: brandName.trim(),
         itemType: selectedItemType.name,
         itemWeightGrams: selectedItemType.weight,
         imageUrl: uploadResult.success ? uploadResult.imageUrl : null,
         thumbnailUrl: uploadResult.success ? uploadResult.thumbnailUrl : null,
+        gender: selectedGender,
       };
 
-      // save to backend
+      // save to backend (backend will also extract CLIP embedding if image provided)
       const saveResult = await saveScanToBackend(scanData);
 
-      // if backend didn't return calculations (guest user or backend failure), calculate on frontend
+      // if backend didn't return calculations, calculate on frontend
       let finalScanData = saveResult.scan || scanData;
       if (!finalScanData.water_usage_liters || !finalScanData.carbon_footprint_kg) {
         const { score, grade, waterUsage, carbonFootprint } = calculateImpactScore(
@@ -271,16 +333,21 @@ const CameraScreen = () => {
         };
       }
 
-      // navigate to results with backend-calculated data
+      // navigate to results with combined data
       navigation.navigate('ScanResult', {
-        scanData: finalScanData,
+        scanData: {
+          ...finalScanData,
+          imageUrl: uploadResult.success ? uploadResult.imageUrl : finalScanData.imageUrl,
+          thumbnailUrl: uploadResult.success ? uploadResult.thumbnailUrl : finalScanData.thumbnailUrl,
+        },
         scanId: saveResult.scanId,
       });
 
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      Alert.alert('Error', 'Failed to capture image: ' + error.message);
+      Alert.alert('Error', 'Failed to process garment image: ' + error.message);
+      console.error('Garment image error:', error);
     }
   };
 
@@ -289,13 +356,38 @@ const CameraScreen = () => {
       <CameraView style={styles.camera} ref={cameraRef} facing="back">
         <SafeAreaView style={styles.overlay}>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (scanMode === 'full' && scanStep === 'garment') {
+                // go back to label step instead of leaving
+                setScanStep('label');
+                setLabelScanData(null);
+              } else {
+                // CameraScreen is a tab root, so goBack may not be available
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  setShowPreScanForm(true);
+                }
+              }
+            }}
             style={styles.closeButton}
             accessibilityRole="button"
             accessibilityLabel="Close camera"
           >
             <Text style={styles.closeText}>X</Text>
           </TouchableOpacity>
+
+          {/* Step indicator for full scan mode */}
+          {scanMode === 'full' && (
+            <View style={styles.stepIndicator}>
+              <View style={[styles.stepDot, scanStep === 'label' && styles.stepDotActive]} />
+              <View style={styles.stepLine} />
+              <View style={[styles.stepDot, scanStep === 'garment' && styles.stepDotActive]} />
+              <Text style={styles.stepLabel}>
+                {scanStep === 'label' ? 'Step 1: Scan Label' : 'Step 2: Photo of Item'}
+              </Text>
+            </View>
+          )}
 
           <View style={styles.scanningArea}>
             <View style={styles.scanGuideBox}>
@@ -304,10 +396,25 @@ const CameraScreen = () => {
               <View style={[styles.corner, styles.bottomLeft]} />
               <View style={[styles.corner, styles.bottomRight]} />
             </View>
-            <Text style={styles.guideText}>Position care label within frame</Text>
+            <Text style={styles.guideText}>
+              {scanMode === 'care'
+                ? 'Position care label within frame'
+                : scanStep === 'label'
+                  ? 'Position care/composition label within frame'
+                  : 'Position the full garment within frame'}
+            </Text>
           </View>
 
           <View style={styles.controls}>
+            <TouchableOpacity
+              style={styles.galleryButton}
+              onPress={handlePickImage}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Pick from gallery"
+            >
+              <Text style={styles.galleryButtonText}>Gallery</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.captureButton}
               onPress={handleCapture}
@@ -318,6 +425,7 @@ const CameraScreen = () => {
             >
               <View style={styles.captureInner} />
             </TouchableOpacity>
+            <View style={{ width: 60 }} />
             {loading && <Text style={styles.processingText}>Processing...</Text>}
           </View>
         </SafeAreaView>
@@ -331,7 +439,7 @@ const CameraScreen = () => {
         <SafeAreaView style={styles.formContainer}>
           <ScrollView contentContainerStyle={styles.formContent}>
             <TouchableOpacity
-              onPress={() => navigation.goBack()}
+              onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home')}
               style={styles.formCloseButton}
             >
               <Text style={styles.closeButtonText}>← Back</Text>
@@ -347,18 +455,19 @@ const CameraScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.modeButton,
-                  scanMode === 'sustainability' && styles.modeButtonActive,
+                  scanMode === 'full' && styles.modeButtonActive,
                 ]}
-                onPress={() => setScanMode('sustainability')}
+                onPress={() => setScanMode('full')}
               >
                 <Text style={[
                   styles.modeButtonText,
-                  scanMode === 'sustainability' && styles.modeButtonTextActive,
+                  scanMode === 'full' && styles.modeButtonTextActive,
                 ]}>
-                  Sustainability Impact
+                  Full Scan
                 </Text>
+                <Text style={styles.modeSubtext}>Label + Item Photo</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[
                   styles.modeButton,
@@ -370,13 +479,31 @@ const CameraScreen = () => {
                   styles.modeButtonText,
                   scanMode === 'care' && styles.modeButtonTextActive,
                 ]}>
-                  Care Instructions
+                  Care Labels
                 </Text>
+                <Text style={styles.modeSubtext}>Washing Instructions</Text>
               </TouchableOpacity>
             </View>
 
-            {scanMode === 'sustainability' ? (
+            {scanMode === 'full' ? (
               <>
+                {/* How it works explanation */}
+                <View style={styles.howItWorks}>
+                  <Text style={styles.howItWorksTitle}>How it works</Text>
+                  <View style={styles.howItWorksStep}>
+                    <View style={styles.stepNumber}>
+                      <Text style={styles.stepNumberText}>1</Text>
+                    </View>
+                    <Text style={styles.howItWorksText}>Scan the care label to detect fiber composition</Text>
+                  </View>
+                  <View style={styles.howItWorksStep}>
+                    <View style={styles.stepNumber}>
+                      <Text style={styles.stepNumberText}>2</Text>
+                    </View>
+                    <Text style={styles.howItWorksText}>Take a photo of the garment for AI visual matching</Text>
+                  </View>
+                </View>
+
                 <Text style={styles.inputLabel}>Brand Name</Text>
                 <TextInput
                   style={styles.brandInput}
@@ -386,6 +513,38 @@ const CameraScreen = () => {
                   onChangeText={setBrandName}
                   autoCapitalize="words"
                 />
+
+                <Text style={styles.inputLabel}>Gender</Text>
+                <View style={styles.genderSelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderButton,
+                      selectedGender === 'mens' && styles.genderButtonActive,
+                    ]}
+                    onPress={() => setSelectedGender('mens')}
+                  >
+                    <Text style={[
+                      styles.genderButtonText,
+                      selectedGender === 'mens' && styles.genderButtonTextActive,
+                    ]}>
+                      Men's
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderButton,
+                      selectedGender === 'womens' && styles.genderButtonActive,
+                    ]}
+                    onPress={() => setSelectedGender('womens')}
+                  >
+                    <Text style={[
+                      styles.genderButtonText,
+                      selectedGender === 'womens' && styles.genderButtonTextActive,
+                    ]}>
+                      Women's
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
                 <Text style={styles.inputLabel}>Item Type</Text>
                 <FlatList
@@ -543,6 +702,25 @@ const styles = StyleSheet.create({
   controls: {
     paddingBottom: spacing.xxl,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.xl,
+  },
+  galleryButton: {
+    width: 60,
+    height: 60,
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  galleryButtonText: {
+    ...typography.caption,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 10,
   },
   captureButton: {
     width: 80,
@@ -616,6 +794,89 @@ const styles = StyleSheet.create({
   modeButtonTextActive: {
     color: colors.primary,
   },
+  modeSubtext: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginTop: 2,
+    fontSize: 10,
+  },
+  // Step indicator on camera view
+  stepIndicator: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    left: spacing.md + 56,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+  },
+  stepDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  stepDotActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  stepLine: {
+    width: 30,
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: spacing.xs,
+  },
+  stepLabel: {
+    ...typography.bodySmall,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    marginLeft: spacing.sm,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  // How it works section
+  howItWorks: {
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  howItWorksTitle: {
+    ...typography.bodySmall,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  howItWorksStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  stepNumber: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
+  },
+  stepNumberText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.background,
+  },
+  howItWorksText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    flex: 1,
+  },
   careModeBanner: {
     backgroundColor: colors.primaryLight,
     padding: spacing.lg,
@@ -643,6 +904,32 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     marginBottom: spacing.lg,
     backgroundColor: colors.surface,
+  },
+  genderSelector: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  genderButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+  },
+  genderButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  genderButtonText: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  genderButtonTextActive: {
+    color: colors.primary,
   },
   itemTypeRow: {
     justifyContent: 'space-between',
@@ -696,9 +983,6 @@ const styles = StyleSheet.create({
   },
   uploadButton: {
     marginBottom: spacing.md,
-  },
-  startButton: {
-    marginTop: spacing.lg,
   },
 });
 

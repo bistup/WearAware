@@ -9,6 +9,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../database/db');
 const cache = require('../cache');
+const mlService = require('../services/mlService');
 
 // calculates environmental impact from fiber composition and garment weight
 // mUST stay in sync with src/utils/impactCalculator.js
@@ -232,6 +233,27 @@ router.post('/', async (req, res) => {
     // invalidate user's history cache since they added a new scan
     await cache.invalidateCached(cache.keys.history(firebaseUid));
     
+    // if garment image was provided, extract CLIP embedding in background for visual matching
+    if (imageUrl) {
+      const scanIdForEmbed = result.rows[0].id;
+      mlService.extractEmbedding(imageUrl).then(embResult => {
+        if (embResult.success) {
+          pool.query(
+            'UPDATE scans SET image_embedding = $1 WHERE id = $2',
+            [JSON.stringify(embResult.embedding), scanIdForEmbed]
+          ).then(() => {
+            console.log(`CLIP embedding saved for scan ${scanIdForEmbed}`);
+          }).catch(err => {
+            console.log('Failed to save CLIP embedding:', err.message);
+          });
+        } else {
+          console.log('CLIP embedding extraction failed:', embResult.error);
+        }
+      }).catch(err => {
+        console.log('CLIP embedding extraction error:', err.message);
+      });
+    }
+    
     res.json(responseData);
   } catch (error) {
     console.error('Error creating scan:', error);
@@ -442,8 +464,6 @@ router.delete('/:id', async (req, res) => {
 // ============================================================================
 // VISUAL SIMILARITY ENDPOINTS
 // ============================================================================
-
-const mlService = require('../services/mlService');
 
 // create visual scan (scans full garment image for style matching)
 router.post('/visual-scan', async (req, res) => {

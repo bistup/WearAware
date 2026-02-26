@@ -16,18 +16,27 @@ const summariesRouter = require('./routes/summaries');
 const socialRouter = require('./routes/social');
 const alternativesRouter = require('./routes/alternatives');
 const gamificationRouter = require('./routes/gamification');
+const uploadsRouter = require('./routes/uploads');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // middleware for cors, json parsing, and url encoding
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '15mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '15mb' }));
 
-// log all incoming requests
+// serve uploaded images as static files (no directory listing)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  dotfiles: 'ignore',
+  index: false,
+  maxAge: '7d',
+}));
+
+// log all incoming requests (omit body to avoid leaking sensitive data)
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`, req.body);
+  console.log(`${req.method} ${req.path}`);
   next();
 });
 
@@ -39,6 +48,7 @@ app.use('/api/summaries', summariesRouter);
 app.use('/api/social', socialRouter);
 app.use('/api/alternatives', alternativesRouter);
 app.use('/api/gamification', gamificationRouter);
+app.use('/api/uploads', uploadsRouter);
 
 // health check endpoint to verify database connection
 app.get('/api/health', async (req, res) => {

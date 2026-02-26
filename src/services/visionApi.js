@@ -3,8 +3,8 @@
 // connects to google cloud vision api to read text from clothing labels
 // extracts fiber composition and country of origin from the scanned images
 
-// note: process.env doesn't work in React Native, so we hardcode the API key
-const GOOGLE_VISION_API_KEY = 'AIzaSyAfcmd6VctYys2l9uI65KFkJBhJK15ycLE';
+// loaded from .env via react-native-dotenv
+import { GOOGLE_VISION_API_KEY } from '@env';
 const VISION_API_URL = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`;
 
 // send image to google vision api for text recognition

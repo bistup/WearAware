@@ -1,20 +1,24 @@
 /**
  * Image Upload Service
- * Handles uploading scan images to Firebase Storage
+ * Uploads scan images to the backend server (self-hosted, no Firebase Storage)
+ * Privacy: EXIF/GPS stripped server-side, UUID filenames, user-scoped folders
  * Author: Caitriona McCann
  */
 
-import { storage, auth } from '../config/firebase';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { auth } from '../config/firebase';
 import * as ImageManipulator from 'expo-image-manipulator';
 
+// backend URL (same LXC as the API)
+const UPLOAD_URL = 'http://YOUR_SERVER_IP:3000/api/uploads/image';
+
 /**
- * Upload scan image to Firebase Storage
+ * Upload scan image to backend server
+ * Server handles: compression, thumbnail generation, EXIF stripping, UUID naming
  * @param {string} localUri - Local file URI from camera/gallery
- * @param {string} scanId - Scan ID for organizing files
- * @returns {Promise<{success: boolean, url?: string, error?: string}>}
+ * @param {string} scanId - Scan ID (used for reference only, server generates UUID filename)
+ * @returns {Promise<{success: boolean, imageUrl?: string, thumbnailUrl?: string, error?: string}>}
  */
-export async function uploadScanImage(localUri, scanId) {
+export async function uploadScanImages(localUri, scanId) {
   try {
     const user = auth.currentUser;
 
@@ -25,33 +29,46 @@ export async function uploadScanImage(localUri, scanId) {
       };
     }
 
-    // Compress image before upload (max 800px width, 80% quality)
+    // light client-side resize to reduce upload size (max 1200px before sending)
     const manipulatedImage = await ImageManipulator.manipulateAsync(
       localUri,
-      [{ resize: { width: 800 } }],
-      { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+      [{ resize: { width: 1200 } }],
+      { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
     );
 
-    // Convert to blob for upload
-    const response = await fetch(manipulatedImage.uri);
-    const blob = await response.blob();
+    // build multipart form data 
+    const formData = new FormData();
+    formData.append('image', {
+      uri: manipulatedImage.uri,
+      type: 'image/jpeg',
+      name: `${scanId || Date.now()}.jpg`,
+    });
+    formData.append('firebaseUid', user.uid);
 
-    // Create storage reference
-    const filename = `scans/${user.uid}/${scanId || Date.now()}.jpg`;
-    const storageRef = ref(storage, filename);
+    console.log('Uploading image to backend server...');
 
-    // Upload file
-    console.log('Uploading image to Firebase Storage:', filename);
-    await uploadBytes(storageRef, blob);
+    const response = await fetch(UPLOAD_URL, {
+      method: 'POST',
+      body: formData,
+      // don't set Content-Type header — fetch sets it with the boundary for multipart
+    });
 
-    // Get download URL
-    const downloadURL = await getDownloadURL(storageRef);
+    const data = await response.json();
 
-    console.log('Image uploaded successfully:', downloadURL);
+    if (!response.ok || !data.success) {
+      console.error('Upload failed:', data.error);
+      return {
+        success: false,
+        error: data.error || 'Upload failed',
+      };
+    }
+
+    console.log('Image uploaded successfully:', data.imageUrl);
 
     return {
       success: true,
-      url: downloadURL,
+      imageUrl: data.imageUrl,
+      thumbnailUrl: data.thumbnailUrl,
     };
   } catch (error) {
     console.error('Error uploading image:', error);
@@ -63,64 +80,60 @@ export async function uploadScanImage(localUri, scanId) {
 }
 
 /**
- * Upload thumbnail version of image (smaller, for feeds/lists)
- * @param {string} localUri - Local file URI
- * @param {string} scanId - Scan ID
- * @returns {Promise<{success: boolean, url?: string, error?: string}>}
+ * Upload just the full-size image (legacy compat)
  */
-export async function uploadThumbnail(localUri, scanId) {
-  try {
-    const user = auth.currentUser;
-
-    if (!user || user.isAnonymous) {
-      return { success: false, error: 'Must be logged in' };
-    }
-
-    // Create thumbnail (300px width, 70% quality)
-    const thumbnail = await ImageManipulator.manipulateAsync(
-      localUri,
-      [{ resize: { width: 300 } }],
-      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-    );
-
-    const response = await fetch(thumbnail.uri);
-    const blob = await response.blob();
-
-    const filename = `thumbnails/${user.uid}/${scanId || Date.now()}.jpg`;
-    const storageRef = ref(storage, filename);
-
-    await uploadBytes(storageRef, blob);
-    const downloadURL = await getDownloadURL(storageRef);
-
-    return {
-      success: true,
-      url: downloadURL,
-    };
-  } catch (error) {
-    console.error('Error uploading thumbnail:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
+export async function uploadScanImage(localUri, scanId) {
+  const result = await uploadScanImages(localUri, scanId);
+  return {
+    success: result.success,
+    url: result.imageUrl,
+    error: result.error,
+  };
 }
 
 /**
- * Delete image from Firebase Storage
- * @param {string} imageUrl - Full Firebase Storage URL
+ * Upload just a thumbnail (legacy compat - server generates both anyway)
+ */
+export async function uploadThumbnail(localUri, scanId) {
+  const result = await uploadScanImages(localUri, scanId);
+  return {
+    success: result.success,
+    url: result.thumbnailUrl,
+    error: result.error,
+  };
+}
+
+/**
+ * Delete image from server
+ * @param {string} imageUrl - Full URL of the image
  * @returns {Promise<boolean>}
  */
 export async function deleteImage(imageUrl) {
   try {
-    if (!imageUrl || !imageUrl.includes('firebase')) {
+    if (!imageUrl || !imageUrl.includes('/uploads/')) {
       return false;
     }
 
-    const storageRef = ref(storage, imageUrl);
-    await deleteObject(storageRef);
+    const user = auth.currentUser;
+    if (!user) return false;
 
-    console.log('Image deleted:', imageUrl);
-    return true;
+    // extract /userHash/filename from URL
+    const urlParts = imageUrl.split('/uploads/scans/');
+    if (urlParts.length < 2) return false;
+
+    const pathPart = urlParts[1]; // "userHash/filename.jpg"
+
+    const response = await fetch(
+      `http://YOUR_SERVER_IP:3000/api/uploads/image/${pathPart}`,
+      {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firebaseUid: user.uid }),
+      }
+    );
+
+    const data = await response.json();
+    return data.success === true;
   } catch (error) {
     console.error('Error deleting image:', error);
     return false;
@@ -128,33 +141,23 @@ export async function deleteImage(imageUrl) {
 }
 
 /**
- * Upload both full image and thumbnail
- * @param {string} localUri - Local file URI
- * @param {string} scanId - Scan ID
- * @returns {Promise<{success: boolean, imageUrl?: string, thumbnailUrl?: string, error?: string}>}
+ * GDPR: Delete all images for the current user
+ * @returns {Promise<{success: boolean, deletedFiles?: number}>}
  */
-export async function uploadScanImages(localUri, scanId) {
+export async function deleteAllMyImages() {
   try {
-    // Upload both in parallel
-    const [fullResult, thumbResult] = await Promise.all([
-      uploadScanImage(localUri, scanId),
-      uploadThumbnail(localUri, scanId),
-    ]);
+    const user = auth.currentUser;
+    if (!user) return { success: false };
 
-    if (!fullResult.success) {
-      return fullResult;
-    }
+    const response = await fetch('http://YOUR_SERVER_IP:3000/api/uploads/my-data', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firebaseUid: user.uid }),
+    });
 
-    return {
-      success: true,
-      imageUrl: fullResult.url,
-      thumbnailUrl: thumbResult.success ? thumbResult.url : fullResult.url,
-    };
+    return await response.json();
   } catch (error) {
-    console.error('Error uploading scan images:', error);
-    return {
-      success: false,
-      error: error.message,
-    };
+    console.error('Error deleting all images:', error);
+    return { success: false, error: error.message };
   }
 }

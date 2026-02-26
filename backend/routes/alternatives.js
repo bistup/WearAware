@@ -8,12 +8,14 @@ const router = express.Router();
 const pool = require('../database/db');
 const { getUserId } = require('../database/db');
 const cache = require('../cache');
+const webSearch = require('../services/webSearchService');
+const ebayService = require('../services/ebayService');
 
 // --- product recommendations
 
 // GET /api/alternatives/recommendations - get alternatives for an item type
 router.get('/recommendations', async (req, res) => {
-  const { itemType, currentGrade, currentScore, limit: queryLimit } = req.query;
+  const { itemType, limit: queryLimit } = req.query;
   const limit = parseInt(queryLimit) || 10;
 
   try {
@@ -28,15 +30,13 @@ router.get('/recommendations', async (req, res) => {
     let params;
 
     if (itemType) {
-      // get recommendations for specific item type that are better than current grade
-      const scoreThreshold = parseInt(currentScore) || 0;
+      // get sustainable alternatives for this item type
       query = `
-        SELECT * FROM product_recommendations 
+        SELECT * FROM product_recommendations
         WHERE LOWER(item_type) = LOWER($1)
-          AND sustainability_score > $2
         ORDER BY sustainability_score DESC
-        LIMIT $3`;
-      params = [itemType, scoreThreshold, limit];
+        LIMIT $2`;
+      params = [itemType, limit];
     } else {
       // get top recommendations across all types
       query = `
@@ -257,6 +257,133 @@ router.delete('/wishlist/:wishlistId', async (req, res) => {
   } catch (error) {
     console.error('Error removing from wishlist:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- web search for real products
+
+// GET /api/alternatives/search - search the web for sustainable alternatives
+router.get('/search', async (req, res) => {
+  const { itemType, primaryFiber, imageUrl, gender, limit: queryLimit } = req.query;
+  const limit = parseInt(queryLimit) || 8;
+
+  if (!webSearch.isConfigured()) {
+    return res.status(503).json({
+      success: false,
+      error: 'Web search not configured. Set GOOGLE_APPLICATION_CREDENTIALS on the server.',
+      results: [],
+    });
+  }
+
+  try {
+    // check cache first (cache by item type + fiber + gender + image presence)
+    const imageHash = imageUrl ? require('crypto').createHash('md5').update(imageUrl).digest('hex').slice(0, 8) : 'noimg';
+    const cacheKey = `websearch:${(gender || 'all')}:${(itemType || 'all').toLowerCase()}:${(primaryFiber || 'any').toLowerCase()}:${imageHash}`;
+    const cached = await cache.getCached(cacheKey);
+    if (cached) {
+      return res.json({ success: true, results: cached, cached: true });
+    }
+
+    const searchResult = await webSearch.searchAlternatives(itemType, primaryFiber, { limit, imageUrl, gender });
+
+    if (!searchResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: searchResult.error,
+        results: [],
+      });
+    }
+
+    // cache for 24 hours (web results don't change that often)
+    if (searchResult.results.length > 0) {
+      await cache.setCached(cacheKey, searchResult.results, 86400);
+    }
+
+    res.json({
+      success: true,
+      results: searchResult.results,
+      query: searchResult.query,
+      totalResults: searchResult.totalResults,
+    });
+  } catch (error) {
+    console.error('Web search endpoint error:', error);
+    res.status(500).json({ success: false, error: error.message, results: [] });
+  }
+});
+
+// --- ebay second-hand search
+
+// GET /api/alternatives/secondhand - search ebay for pre-owned clothing
+router.get('/secondhand', async (req, res) => {
+  const { itemType, primaryFiber, imageUrl, gender, limit: queryLimit } = req.query;
+  const limit = parseInt(queryLimit) || 10;
+
+  if (!ebayService.isConfigured()) {
+    return res.json({
+      success: true,
+      results: [],
+      notConfigured: true,
+      message: 'eBay integration not configured. Set EBAY_APP_ID and EBAY_CERT_ID on the server.',
+    });
+  }
+
+  try {
+    // check cache first
+    const imageHash = imageUrl
+      ? require('crypto').createHash('md5').update(imageUrl).digest('hex').slice(0, 8)
+      : 'noimg';
+    const cacheKey = `ebay:${(gender || 'all')}:${(itemType || 'all').toLowerCase()}:${(primaryFiber || 'any').toLowerCase()}:${imageHash}`;
+    const cached = await cache.getCached(cacheKey);
+    if (cached) {
+      return res.json({ success: true, results: cached, cached: true });
+    }
+
+    // build search query using CLIP description if image available
+    let searchQuery = '';
+    if (imageUrl) {
+      const description = await webSearch.describeGarmentImage(imageUrl);
+      if (description) {
+        const parts = [];
+        if (gender) parts.push(gender);
+        if (description.color) parts.push(description.color);
+        if (description.garmentType) parts.push(description.garmentType);
+        else if (itemType && itemType !== 'Garment') parts.push(itemType);
+        if (primaryFiber) parts.push(primaryFiber);
+        searchQuery = parts.join(' ');
+      }
+    }
+
+    if (!searchQuery) {
+      const parts = [];
+      if (gender) parts.push(gender);
+      if (itemType && itemType !== 'Garment') parts.push(itemType);
+      if (primaryFiber) parts.push(primaryFiber);
+      searchQuery = parts.join(' ') || 'clothing';
+    }
+
+    const searchResult = await ebayService.searchSecondHand(searchQuery, { limit });
+
+    if (!searchResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: searchResult.error,
+        results: [],
+      });
+    }
+
+    // cache for 24 hours
+    if (searchResult.results.length > 0) {
+      await cache.setCached(cacheKey, searchResult.results, 86400);
+    }
+
+    res.json({
+      success: true,
+      results: searchResult.results,
+      total: searchResult.total,
+    });
+  } catch (error) {
+    console.error('eBay search endpoint error:', error);
+    res.status(500).json({ success: false, error: error.message, results: [] });
   }
 });
 

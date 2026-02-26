@@ -1,0 +1,403 @@
+WearAware — Sustainable Fashion Scanner
+========================================
+
+Author: Caitriona McCann
+Started: November 2025
+
+
+OVERVIEW
+--------
+
+WearAware is a mobile application that helps users understand and reduce the
+environmental impact of their clothing. Users scan clothing care labels with
+their phone camera, and the app extracts fiber composition data, calculates
+sustainability metrics (water usage, CO2 emissions, microplastic shedding,
+chemical intensity), assigns a letter grade (A-F), and suggests more
+sustainable alternatives. It combines OCR, machine learning, AI-generated
+summaries, social features, and gamification into a single platform for
+conscious fashion choices.
+
+
+ARCHITECTURE
+------------
+
+The system is a three-tier architecture deployed on a Proxmox LXC container
+at YOUR_SERVER_IP:
+
+  Tier            Technology                  Port    Role
+  --------------- --------------------------- ------- ----------------------------------------
+  Frontend        React Native / Expo (SDK 54) Expo Go Mobile UI, camera, OCR orchestration
+  Backend         Node.js 18 / Express        3000    REST API, business logic, external APIs
+  ML Service      Python Flask                5000    CLIP model for embeddings & classification
+  Database        PostgreSQL 14+              5432    Persistent storage
+  Cache           Redis                       6379    In-memory caching
+  LLM             Ollama (Llama 3.2 1B)       11434   AI-generated sustainability summaries
+
+
+HOW IT WORKS — END-TO-END FLOW
+-------------------------------
+
+1. AUTHENTICATION (src/context/AuthContext.js)
+
+   - Firebase Authentication with three modes: email/password registration,
+     email/password login, and anonymous guest mode
+   - Auth state persisted via AsyncStorage so users stay logged in between
+     sessions
+   - Registered users are synced to the backend PostgreSQL users table via
+     POST /api/users/sync
+   - Guest users can scan and view results but cannot save scan history,
+     post to the community feed, or access gamification features
+   - Password reset via Firebase sendPasswordResetEmail
+
+
+2. SCANNING A GARMENT (src/screens/main/CameraScreen.js)
+
+   The scan is a two-step process:
+
+   Step 1 — Pre-Scan Form:
+   - User enters brand name, selects item type (from 16 predefined types:
+     Shirt, T-Shirt, Jeans, Dress, etc.), and chooses gender (Men's/Women's)
+     via toggle buttons
+   - User can choose between Full Scan mode (fiber composition + garment
+     photo) or Care Instructions mode (care symbols only)
+
+   Step 2a — Label Scan (OCR):
+   - User photographs the clothing care label using Expo Camera or picks
+     from gallery
+   - The image is converted to base64 and sent to Google Cloud Vision API
+     via src/services/visionApi.js
+   - Vision API performs TEXT_DETECTION and LABEL_DETECTION
+   - Extracted text is parsed by parseCareLabelText() which uses regex to
+     identify:
+       * Fiber composition — e.g., "60% Cotton, 40% Polyester"
+       * Country of origin — e.g., "Made in Bangladesh"
+       * Care instructions — washing symbols, temperature limits, drying
+   - Connectivity is checked first via src/services/hybridOcr.js — if
+     offline, the user is prompted to use manual input instead
+
+   Step 2b — Garment Photo:
+   - After the label scan, the user photographs the actual garment
+   - This image is uploaded to the backend via src/services/imageUpload.js —
+     the image is resized client-side (max 1200px), then uploaded as
+     multipart form data
+   - The backend strips EXIF/GPS data for privacy, generates a UUID
+     filename, stores the image in a user-scoped directory, and creates
+     a thumbnail
+   - The garment image URL is used later for CLIP visual matching and
+     alternative searches
+
+   Alternative: Manual Input (src/screens/main/ManualInputScreen.js)
+   - Users can manually enter fiber percentages and select fiber types from
+     a picker modal (supports 30+ fiber types)
+   - Same gender selector and item type picker as the camera screen
+
+
+3. IMPACT CALCULATION (src/utils/impactCalculator.js)
+
+   Once fibers are identified, the app calculates environmental impact using
+   a comprehensive research-based dataset covering 30+ fiber types across
+   four categories:
+
+   - Natural fibers: Cotton, Organic Cotton, Linen, Hemp, Jute, Bamboo,
+     Sisal, Nettle, Pineapple Leaf, Banana Leaf, etc.
+   - Animal fibers: Wool, Silk
+   - Synthetic fibers: Polyester, Nylon, Acrylic, Spandex, Elastane
+   - Regenerated fibers: Rayon, Viscose, Modal, Lyocell, Tencel
+
+   Each fiber has data for:
+   - Water usage (litres per kg) — ranges from 45L (Polyester) to 125,000L
+     (Wool)
+   - CO2 emissions (kg per kg) — ranges from 0.03 (Modal) to 10.4 (Wool)
+   - Biodegradability — boolean + decomposition time
+   - Microplastic shedding (mg per kg per wash) — 0 for natural, 1600-2200
+     for synthetics
+   - Chemical intensity (0-100 scale)
+   - Renewable energy potential (0-100 scale)
+   - Water pollution (0-100 scale)
+
+   The calculation:
+   a) Multiplies each fiber's impact metrics by its percentage and the
+      garment weight (looked up from the item_types table or defaulting
+      to 300g)
+   b) Computes a weighted sustainability score (0-100)
+   c) Applies bonus/penalty modifiers based on microplastic, chemical,
+      renewable energy, and pollution thresholds
+   d) Assigns a letter grade: A (80+), B (65-79), C (50-64), D (35-49),
+      F (<35)
+
+   This calculation exists in both the frontend (for immediate display) and
+   backend (for authoritative storage).
+
+
+4. SAVING THE SCAN (backend/routes/scans.js)
+
+   - The scan data (fibers, brand, item type, weight, grade, score, metrics,
+     raw OCR text, image URLs) is persisted to the PostgreSQL scans table
+   - The backend independently recalculates the environmental impact to
+     ensure data integrity
+   - If a garment image was uploaded, CLIP embedding extraction is triggered
+     asynchronously in the background — the ML service extracts a
+     512-dimensional vector and stores it in the image_embedding column for
+     later visual similarity search
+   - User's history cache is invalidated in Redis
+
+
+5. RESULTS DISPLAY (src/screens/main/ScanResultScreen.js)
+
+   The results screen has a tabbed interface showing:
+
+   - Sustainability Tab: Hero grade indicator (A-F with color), quick stats
+     (water usage, CO2), fiber composition bars, and an AI-generated summary
+   - Care Instructions Tab: Parsed care symbols with visual icons (wash,
+     bleach, dry, iron, dry clean)
+   - Visual Recommendations: CLIP-based visually similar items from the
+     database
+
+   Additional features:
+   - AI Summary — generated via Ollama (Llama 3.2 1B) running locally on
+     the server, providing a 3-4 sentence educational summary of the
+     garment's environmental impact with actionable recommendations. Falls
+     back to a template if the LLM is unavailable.
+   - Share to Feed — post the scan to the community with a caption
+   - Edit Scan — modify brand, item type, or fiber composition
+   - Delete Scan — removed from database and history
+   - Export — scan data can be exported as CSV, PDF, or text report via
+     src/services/exportService.js
+
+
+6. DETAILED BREAKDOWN (src/screens/main/BreakdownScreen.js)
+
+   Shows per-fiber environmental contribution:
+   - Individual water footprint and carbon footprint for each fiber
+     (proportional to its percentage)
+   - Biodegradability status and decomposition time
+   - Irish context comparisons ("equivalent to X cups of tea", "equal to
+     driving X km")
+
+
+SUSTAINABLE ALTERNATIVES SYSTEM
+---------------------------------
+
+After scanning, users can browse alternatives on the Alternatives Screen
+(src/screens/main/AlternativesScreen.js) with three tabs:
+
+Tab 1: Web Results (Vertex AI Search)
+   - Google Vertex AI Discovery Engine
+     (backend/services/vertexAiService.js) searches a curated data store
+     of ~28 sustainable brand websites (Patagonia, Reformation, Pangaia,
+     Tentree, People Tree, etc.)
+   - Authenticated via GCP service account (google-auth-library)
+   - Search queries are built intelligently: gender + CLIP visual attributes
+     (color, pattern, garment type) + sustainable fiber alternative
+   - CLIP integration (backend/services/webSearchService.js): If the scan
+     includes a garment photo, the ML service's /describe endpoint
+     classifies it (e.g., "off-white plaid outdoor puffer jacket") and
+     these visual attributes are injected into the search query
+   - Product images extracted from Discovery Engine's pagemap metadata
+     (cse_image, og:image) — no additional HTTP requests needed
+   - Fiber substitution logic: if user scanned Polyester, the search
+     targets "organic cotton"; Nylon -> "Tencel"; etc.
+   - Results cached in Redis for 24 hours
+
+Tab 2: Second Hand (eBay)
+   - eBay Browse API (backend/services/ebayService.js) searches for
+     pre-owned/used clothing
+   - OAuth2 client credentials flow with in-memory token caching
+   - Filtered to category 11450 (Clothing), conditions: Used, Good, Very
+     Good, Like New
+   - Marketplace set to EBAY_IE for EUR pricing (Irish marketplace)
+   - CLIP-aware queries same as web search
+   - Gender-aware (e.g., "womens navy blue t-shirt organic cotton")
+
+Tab 3: Visual Match (CLIP Similarity)
+   - Uses CLIP embeddings stored in the database to find visually similar
+     previously-scanned items
+   - Cosine similarity computed between the current scan's embedding and
+     all other embeddings in the database
+   - Results displayed with match percentage badges
+
+
+CLIP MACHINE LEARNING SERVICE (ml-service/)
+---------------------------------------------
+
+A Python Flask microservice running OpenAI's CLIP ViT-B/32 model from
+HuggingFace Transformers:
+
+Endpoints:
+  /health                GET   Health check, confirms model is loaded
+  /extract-embedding     POST  Extract 512-dim normalized embedding from image
+  /extract-embedding-batch POST Extract embeddings from multiple images
+  /describe              POST  Zero-shot garment classification
+
+Image Classification (ml-service/clip_model.py):
+The /describe endpoint uses prompt ensembling — for each category, it
+averages classification probabilities across 3 different text prompt
+templates per label. This provides 3-5% accuracy improvement over
+single-prompt classification.
+
+Categories and label counts:
+  - Colors (34 labels): red, navy blue, sage green, off-white, burgundy,
+    rust, denim blue, etc.
+  - Patterns (19 labels): solid, striped, plaid, floral, leopard print,
+    gingham, herringbone, etc.
+  - Styles (13 labels): casual, formal, sporty, streetwear, bohemian,
+    minimalist, etc.
+  - Garment Types (35 labels): t-shirt, button-up shirt, puffer jacket,
+    midi dress, dungarees, etc.
+
+Image preprocessing: Images are center-cropped to square before
+classification to focus on the garment and reduce background noise.
+
+Confidence thresholds: Attributes with confidence below 0.15 are set to
+null and excluded from search queries to avoid adding noise.
+
+
+SOCIAL FEATURES
+----------------
+
+Community Feed (src/screens/main/FeedScreen.js)
+  - Three feed modes: Following (scans from followed users), Discover
+    (public scans from all users), My Posts
+  - Pull-to-refresh and infinite scroll pagination
+  - User search to find and follow other users
+
+Interactions (backend/routes/social.js)
+  - Follow/Unfollow — directional relationships stored in follows table
+  - Posts — share scans with caption and visibility (public/private)
+  - Likes — toggle-based, unique per user per post
+  - Comments — threaded (supports parent_id for replies)
+  - User Profiles — display name, bio, avatar, privacy settings, scan
+    statistics
+
+Profile (src/screens/auth/ProfileScreen.js)
+  - Shows user stats (total scans, average grade, sustainability score)
+  - Privacy controls (public/followers/private)
+  - Edit profile, view followers/following lists
+
+
+GAMIFICATION SYSTEM (backend/routes/gamification.js)
+------------------------------------------------------
+
+Achievements (15 predefined):
+Categorized into scanning, social, sustainability, and streak:
+  - Scanning: First Scan, Getting Started (5), Label Reader (25),
+    Scanning Pro (100)
+  - Sustainability: Green Choice (first A-grade), Eco Warrior (10
+    A-grades), Water Saver (1000L saved), Carbon Cutter (10kg CO2 saved)
+  - Social: Going Social (first share), Influencer (10 shares), Connected
+    (first follow), Growing Community (10 followers)
+  - Streak: Weekly Warrior (7-day scanning streak)
+
+Progress is tracked incrementally. Achievements unlock automatically after
+events (scans, shares, follows) and award points.
+
+Challenges:
+  - Weekly and monthly time-limited challenges (e.g., "Scan 10 items this
+    week", "Save 500L of water")
+  - Users join challenges explicitly
+  - Progress updates triggered by backend events
+
+Leaderboard (src/screens/main/LeaderboardScreen.js):
+  - Weekly, monthly, and all-time rankings
+  - Scored by sustainability score + achievement points
+  - Cached in Redis (5-minute TTL)
+
+
+CACHING STRATEGY (backend/cache.js)
+--------------------------------------
+
+Redis caching is used throughout with purpose-specific TTLs:
+
+  Data                TTL         Key Pattern
+  ------------------- ----------- -----------------------------------------
+  Scan history        5 minutes   history:{uid}
+  Item weights        1 hour      item_weight:{type}
+  AI summaries        24 hours    summary:{id}
+  Community feed      2 minutes   feed:{uid}
+  Web search results  24 hours    websearch:{gender}:{type}:{fiber}:{hash}
+  eBay results        24 hours    ebay:{gender}:{type}:{fiber}:{hash}
+  Leaderboard         5 minutes   leaderboard:{period}
+
+All cache operations fail silently (errors logged, never thrown) to ensure
+the app degrades gracefully.
+
+
+DATABASE SCHEMA
+----------------
+
+Core tables (backend/database/schema.sql):
+  - users — Firebase UID, email, timestamps
+  - scans — brand, item type, fibers (JSONB), environmental score/grade,
+    water usage, carbon footprint, care instructions, image URLs, CLIP
+    embedding
+  - item_types — 16 predefined garment types with estimated weights
+
+Social tables (backend/database/social_schema.sql):
+  - user_profiles — display name, bio, avatar, privacy, aggregate stats
+  - follows — directional follower/following relationships
+  - scan_posts — shareable scan entries with captions and visibility
+  - likes, comments — engagement on posts (comments support threading)
+  - achievements, user_achievements — achievement definitions and per-user
+    progress
+  - challenges, user_challenges — time-limited challenges and participation
+  - product_recommendations, wishlist — curated sustainable products and
+    user saves
+
+
+NAVIGATION STRUCTURE
+---------------------
+
+5 bottom tabs (src/navigation/TabNavigator.js):
+  1. Home — Welcome, quick actions (scan/manual input), sustainability tip,
+     community links
+  2. Scan — Camera screen with pre-scan form, two-step label+garment
+     scanning
+  3. History — Chronological list of all scans with search/filter
+  4. Community — Social feed with following/discover/my posts tabs
+  5. Profile — User stats, settings, achievements
+
+Detail screens stacked on top (src/navigation/MainStack.js):
+  ScanResult, Breakdown, EditScan, ManualInput, CareInstructions,
+  Comparison, Comments, SocialProfile, FollowerList, EditProfile,
+  Alternatives, Wishlist, Leaderboard, Challenges
+
+
+DESIGN SYSTEM (src/theme/theme.js)
+-------------------------------------
+
+  - Dark theme with near-black canvas (#0D0D0D) and vibrant electric green
+    accents (#00E676)
+  - WCAG 2.1 AA compliant contrast ratios for all text levels
+  - Dynamic font scaling respecting system accessibility settings (capped
+    at 1.5x)
+  - EU Accessibility Act (EAA) compliant with large touch targets (48px
+    minimum), clear labels, and screen reader support
+  - Custom view-based tab icons (no emoji dependencies)
+
+
+EXTERNAL SERVICES & API KEYS
+-------------------------------
+
+  Service                           Purpose                     Auth Method
+  --------------------------------- --------------------------- ----------------------
+  Firebase Auth                     User authentication         API key via .env
+  Google Cloud Vision API           OCR text extraction          API key
+  Google Vertex AI Discovery Engine Sustainable product search   Service account JSON
+  eBay Browse API                   Second-hand clothing search  OAuth2 client creds
+  Ollama (Llama 3.2 1B)            AI sustainability summaries  Local (no auth)
+  CLIP (OpenAI ViT-B/32)           Image embeddings & classify  Local (no auth)
+
+
+DEPLOYMENT
+-----------
+
+All backend services run on a Proxmox LXC container (YOUR_SERVER_IP):
+  - 2 CPU cores, 5GB RAM, 20GB disk, no GPU
+  - Node.js 18 backend on port 3000
+  - Python Flask ML service on port 5000 (CLIP runs on CPU, ~45s model
+    load time)
+  - PostgreSQL and Redis on the same host
+  - Ollama on port 11434
+
+The frontend runs via Expo Go on the user's phone (same WiFi network as
+the server).

@@ -18,10 +18,31 @@ web-build/
 # Metro
 .metro-health-check*
 
-# Environment
+# Environment / Secrets
 .env
 .env.local
 .env.production
+
+# Claude Code settings (may contain credentials)
+.claude/
+
+# Config files with credentials
+*.conf
+
+# Python (ml-service)
+__pycache__/
+*.pyc
+venv/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test data
+**/test_response.json
+embed_test.json
 
 # macOS
 .DS_Store
@@ -33,14 +54,8 @@ web-build/
 *.swo
 *~
 
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
 # Testing
 coverage/
 
 # Temporary files
-*.log
 .cache/

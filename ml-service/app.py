@@ -72,6 +72,54 @@ def extract_embedding():
             'error': str(e)
         }), 500
 
+@app.route('/describe', methods=['POST'])
+def describe_image():
+    """
+    Use CLIP zero-shot classification to describe a garment image.
+    Returns color, pattern, style, garment type, and a combined description.
+
+    Request body:
+    {
+        "image_url": "https://example.com/image.jpg"
+    }
+
+    Response:
+    {
+        "success": true,
+        "color": "blue",
+        "pattern": "solid color",
+        "style": "casual",
+        "garment_type": "jacket",
+        "description": "blue casual jacket"
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'image_url' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Missing image_url in request body'
+            }), 400
+
+        image_url = data['image_url']
+
+        # Use CLIP zero-shot to describe the garment
+        description = clip_extractor.describe_image(image_url)
+
+        return jsonify({
+            'success': True,
+            **description
+        })
+
+    except Exception as e:
+        print(f"Error describing image: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/extract-embedding-batch', methods=['POST'])
 def extract_embedding_batch():
     """

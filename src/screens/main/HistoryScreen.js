@@ -107,6 +107,8 @@ const HistoryScreen = () => {
 
   const renderScanItem = ({ item }) => {
     const isSelected = comparisonMode && selectedScans.find(s => s.id === item.id);
+    const hasImage = !!(item.thumbnailUrl || item.thumbnail_url || item.imageUrl || item.image_url);
+    const imageUri = item.thumbnailUrl || item.thumbnail_url || item.imageUrl || item.image_url;
     
     return (
       <Card style={[styles.scanCard, isSelected && styles.selectedCard]}>
@@ -124,20 +126,34 @@ const HistoryScreen = () => {
           activeOpacity={0.7}
           style={styles.scanContent}
         >
+          {/* Image banner at top of card */}
+          {hasImage && (
+            <View style={styles.cardImageContainer}>
+              <Image
+                source={{ uri: imageUri }}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
+              <View style={styles.cardImageOverlay} />
+              <View style={styles.cardGradeBadge}>
+                <GradeIndicator grade={item.grade || 'C'} size="small" />
+              </View>
+              {comparisonMode && (
+                <View style={styles.cardCheckboxOverlay}>
+                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                    {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
           <View style={styles.scanHeader}>
-            {comparisonMode && (
+            {!hasImage && comparisonMode && (
               <View style={styles.checkboxContainer}>
                 <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
                   {isSelected && <Text style={styles.checkmark}>✓</Text>}
                 </View>
               </View>
-            )}
-            {(item.thumbnailUrl || item.thumbnail_url) && (
-              <Image
-                source={{ uri: item.thumbnailUrl || item.thumbnail_url }}
-                style={styles.thumbnail}
-                resizeMode="cover"
-              />
             )}
             <View style={styles.scanInfo}>
               <Text style={styles.brand}>{item.brand || 'Unknown Brand'}</Text>
@@ -146,7 +162,7 @@ const HistoryScreen = () => {
                 {new Date(item.createdAt).toLocaleDateString()}
               </Text>
             </View>
-            <GradeIndicator grade={item.grade || 'C'} size="small" />
+            {!hasImage && <GradeIndicator grade={item.grade || 'C'} size="small" />}
           </View>
         </TouchableOpacity>
         {!comparisonMode && (
@@ -353,6 +369,7 @@ const getStyles = (colors, typography, spacing) => StyleSheet.create({
   scanCard: {
     marginBottom: spacing.md,
     overflow: 'hidden',
+    padding: 0,
   },
   selectedCard: {
     borderWidth: 3,
@@ -362,10 +379,39 @@ const getStyles = (colors, typography, spacing) => StyleSheet.create({
   scanContent: {
     flex: 1,
   },
+  cardImageContainer: {
+    width: '100%',
+    height: 140,
+    position: 'relative',
+    backgroundColor: colors.surface,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardImageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  cardGradeBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+  },
+  cardCheckboxOverlay: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+  },
   scanHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: spacing.md,
   },
   checkboxContainer: {
     marginRight: spacing.md,

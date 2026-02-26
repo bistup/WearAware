@@ -46,17 +46,7 @@ class CLIPEmbeddingExtractor:
             List of 512 floating point numbers (normalized embedding)
         """
         try:
-            # Load image from URL or file
-            if image_url.startswith('http://') or image_url.startswith('https://'):
-                response = requests.get(image_url, timeout=10)
-                response.raise_for_status()
-                image = Image.open(BytesIO(response.content))
-            else:
-                image = Image.open(image_url)
-
-            # Convert to RGB if needed (some images might be RGBA or grayscale)
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
+            image = self._load_image(image_url)
 
             # Process image through CLIP processor
             inputs = self.processor(images=image, return_tensors="pt")
@@ -89,6 +79,188 @@ class CLIPEmbeddingExtractor:
             raise Exception(f"Failed to download image from {image_url}: {str(e)}")
         except Exception as e:
             raise Exception(f"Failed to extract embedding: {str(e)}")
+
+    def _load_image(self, image_url):
+        """Load image from URL or file path and convert to RGB"""
+        if image_url.startswith('http://') or image_url.startswith('https://'):
+            response = requests.get(image_url, timeout=10)
+            response.raise_for_status()
+            image = Image.open(BytesIO(response.content))
+        else:
+            image = Image.open(image_url)
+
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+
+        # center crop to square for more consistent CLIP results
+        # removes background noise and focuses on the garment
+        w, h = image.size
+        if w != h:
+            crop_size = min(w, h)
+            left = (w - crop_size) // 2
+            top = (h - crop_size) // 2
+            image = image.crop((left, top, left + crop_size, top + crop_size))
+
+        return image
+
+    def _classify_with_ensemble(self, image, labels, prompt_templates):
+        """
+        Classify image against labels using prompt ensembling.
+        Averages probabilities across multiple prompt templates per label
+        for more robust predictions (3-5% accuracy improvement over single prompts).
+
+        Args:
+            image: PIL Image
+            labels: list of label strings
+            prompt_templates: list of format strings with {label} placeholder
+
+        Returns:
+            (best_label, confidence, all_probs_dict)
+        """
+        # accumulate probabilities across all prompt templates
+        accumulated_probs = np.zeros(len(labels))
+
+        for template in prompt_templates:
+            text_prompts = [template.format(label=label) for label in labels]
+
+            inputs = self.processor(
+                text=text_prompts,
+                images=image,
+                return_tensors="pt",
+                padding=True,
+            )
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+                logits = outputs.logits_per_image[0]
+                probs = logits.softmax(dim=0).cpu().numpy()
+
+            accumulated_probs += probs
+
+        # average across all prompt templates
+        avg_probs = accumulated_probs / len(prompt_templates)
+
+        best_idx = int(np.argmax(avg_probs))
+        return labels[best_idx], float(avg_probs[best_idx])
+
+    def describe_image(self, image_url):
+        """
+        Use CLIP zero-shot classification with prompt ensembling to describe
+        a garment image. Classifies across color, pattern, style, and garment type.
+        Uses multiple prompt templates per category and averages results for
+        more accurate predictions.
+
+        Args:
+            image_url: URL or local path to image
+
+        Returns:
+            dict with keys: color, pattern, style, garment_type, description,
+                  plus confidence scores for each category
+        """
+        try:
+            image = self._load_image(image_url)
+
+            # expanded classification categories with more granular labels
+            categories = {
+                'color': {
+                    'labels': [
+                        'red', 'blue', 'navy blue', 'light blue', 'sky blue',
+                        'green', 'dark green', 'sage green', 'black', 'white',
+                        'off-white', 'beige', 'brown', 'tan', 'grey', 'charcoal',
+                        'light grey', 'pink', 'hot pink', 'purple', 'lavender',
+                        'yellow', 'mustard', 'orange', 'multicolored', 'cream',
+                        'olive', 'khaki', 'burgundy', 'maroon', 'teal',
+                        'coral', 'rust', 'denim blue',
+                    ],
+                    'prompts': [
+                        "a photo of {label} colored clothing",
+                        "a {label} piece of clothing",
+                        "{label} clothing item on display",
+                    ],
+                },
+                'pattern': {
+                    'labels': [
+                        'solid color', 'striped', 'horizontal stripes',
+                        'plaid', 'tartan', 'floral', 'geometric', 'animal print',
+                        'leopard print', 'tie-dye', 'polka dot', 'camouflage',
+                        'checkered', 'gingham', 'abstract print', 'color block',
+                        'herringbone', 'paisley', 'graphic print',
+                    ],
+                    'prompts': [
+                        "a photo of a {label} garment",
+                        "clothing with a {label} pattern",
+                        "a {label} fabric pattern on clothing",
+                    ],
+                },
+                'style': {
+                    'labels': [
+                        'casual', 'formal', 'sporty', 'athletic', 'streetwear',
+                        'vintage', 'bohemian', 'minimalist', 'elegant',
+                        'workwear', 'outdoor', 'loungewear', 'preppy',
+                    ],
+                    'prompts': [
+                        "a {label} style piece of clothing",
+                        "clothing in a {label} fashion style",
+                        "{label} fashion clothing item",
+                    ],
+                },
+                'garment_type': {
+                    'labels': [
+                        't-shirt', 'long sleeve shirt', 'button-up shirt', 'blouse',
+                        'sweater', 'hoodie', 'jacket', 'denim jacket', 'leather jacket',
+                        'coat', 'winter coat', 'puffer jacket', 'windbreaker',
+                        'jeans', 'trousers', 'chinos', 'joggers', 'leggings',
+                        'shorts', 'skirt', 'midi skirt', 'dress', 'midi dress',
+                        'maxi dress', 'cardigan', 'vest', 'polo shirt',
+                        'tank top', 'crop top', 'sweatshirt', 'blazer', 'parka',
+                        'jumpsuit', 'dungarees', 'raincoat',
+                    ],
+                    'prompts': [
+                        "a photo of a {label}",
+                        "a {label} clothing item",
+                        "someone wearing a {label}",
+                    ],
+                },
+            }
+
+            # minimum confidence threshold - attributes below this are excluded
+            # from search queries to avoid adding noise
+            CONFIDENCE_THRESHOLD = 0.15
+
+            results = {}
+            for category, config in categories.items():
+                best_label, confidence = self._classify_with_ensemble(
+                    image, config['labels'], config['prompts']
+                )
+                results[category] = best_label
+                results[f'{category}_confidence'] = confidence
+
+            # build description using only high-confidence attributes
+            description_parts = []
+            if results.get('color') and results.get('color_confidence', 0) >= CONFIDENCE_THRESHOLD:
+                description_parts.append(results['color'])
+            else:
+                results['color'] = None  # mark low-confidence as None
+
+            if (results.get('pattern') and results['pattern'] != 'solid color'
+                    and results.get('pattern_confidence', 0) >= CONFIDENCE_THRESHOLD):
+                description_parts.append(results['pattern'])
+
+            if results.get('style') and results.get('style_confidence', 0) >= CONFIDENCE_THRESHOLD:
+                description_parts.append(results['style'])
+
+            if results.get('garment_type') and results.get('garment_type_confidence', 0) >= CONFIDENCE_THRESHOLD:
+                description_parts.append(results['garment_type'])
+            else:
+                results['garment_type'] = None
+
+            results['description'] = ' '.join(description_parts) if description_parts else ''
+
+            return results
+
+        except Exception as e:
+            raise Exception(f"Failed to describe image: {str(e)}")
 
     def compute_similarity(self, embedding1, embedding2):
         """

@@ -1,24 +1,21 @@
 // author: caitriona mccann
 // date: 27/11/2025
-// last updated: 09/02/2026
-// shows the results after scanning - environmental grade, fibers, water and co2 impact
-// you can edit the brand and item type here if the vision api got it wrong
-// added: share to community + alternatives prompt for low-grade scans
+// last updated: 19/02/2026
+// scan results - modernised layout with hero grade, quick stats, fiber bars
+// always shows alternatives, AI summary via Ollama, care instructions tab
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Card from '../../components/Card';
-import Button from '../../components/Button';
 import GradeIndicator from '../../components/GradeIndicator';
 import ItemTypePickerModal from '../../components/ItemTypePickerModal';
 import CareIcon from '../../components/CareIcon';
 import ShareScanModal from '../../components/ShareScanModal';
-import { colors, typography, spacing, borderRadius, shadows } from '../../theme/theme';
-import { deleteScan, saveScanToBackend, generateAiSummary, generateAiSummaryFromData } from '../../services/api';
+import { colors, typography, spacing, borderRadius, getGradeColor } from '../../theme/theme';
+import { deleteScan, saveScanToBackend, generateAiSummary, generateAiSummaryFromData, fetchVisualRecommendations } from '../../services/api';
 import { createPost, checkAchievements, updateChallengeProgress } from '../../services/api';
-import { ITEM_TYPES } from '../../constants/constants';
 import { useAuth } from '../../context/AuthContext';
 
 const ScanResultScreen = () => {
@@ -26,30 +23,58 @@ const ScanResultScreen = () => {
   const route = useRoute();
   const { user, isGuest } = useAuth();
   const { scanData, scanId } = route.params || {};
-  
+
+  const isVisualScan = scanData?.scanType === 'visual' || scanData?.scan_type === 'visual';
+
   const [selectedItemType, setSelectedItemType] = useState(scanData?.itemType || scanData?.item_type || 'Garment');
   const [showItemTypeModal, setShowItemTypeModal] = useState(false);
   const [updatedScanData, setUpdatedScanData] = useState(scanData);
   const [brandName, setBrandName] = useState(scanData?.brand || '');
   const [aiSummary, setAiSummary] = useState('');
   const [loadingSummary, setLoadingSummary] = useState(false);
-  const [activeTab, setActiveTab] = useState('sustainability'); // 'sustainability' or 'care'
+  const [activeTab, setActiveTab] = useState('sustainability');
   const [showShareModal, setShowShareModal] = useState(false);
   const [newlyUnlocked, setNewlyUnlocked] = useState([]);
-  
-  // update scan data when route params change
+  const [visualRecs, setVisualRecs] = useState([]);
+  const [loadingVisualRecs, setLoadingVisualRecs] = useState(false);
+
   useEffect(() => {
     if (scanData) {
       console.log('ScanResultScreen received scanData:', JSON.stringify(scanData, null, 2));
       setUpdatedScanData(scanData);
-      // generate AI summary immediately when scan data arrives
-      fetchSummaryFromData(scanData);
+      if (!isVisualScan) {
+        fetchSummaryFromData(scanData);
+      }
     }
   }, [scanData]);
 
-  // check achievements and update challenge progress after scan
+  // fetch visual recommendations for any scan with an image (CLIP embedding)
   useEffect(() => {
-    if (scanData && !isGuest) {
+    if (scanId) {
+      // for visual scans, load immediately
+      // for normal scans with images, delay slightly to let backend extract CLIP embedding
+      const hasImage = !!(scanData?.imageUrl || scanData?.image_url);
+      if (isVisualScan) {
+        loadVisualRecommendations();
+      } else if (hasImage) {
+        // give backend 3 seconds to extract CLIP embedding, then try
+        const timer = setTimeout(() => loadVisualRecommendations(), 3000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [scanId]);
+
+  const loadVisualRecommendations = async () => {
+    setLoadingVisualRecs(true);
+    const result = await fetchVisualRecommendations(scanId);
+    if (result.success) {
+      setVisualRecs(result.recommendations || []);
+    }
+    setLoadingVisualRecs(false);
+  };
+
+  useEffect(() => {
+    if (scanData && !isGuest && !isVisualScan) {
       const triggerGamification = async () => {
         try {
           const achievementResult = await checkAchievements('scan', { grade: scanData.grade });
@@ -68,9 +93,10 @@ const ScanResultScreen = () => {
     }
   }, [scanData]);
 
-  // fetch AI summary when scan ID is available
   useEffect(() => {
-    if (scanId && !aiSummary) {
+    // only fetch by scanId if we don't have scanData (e.g. navigating from history)
+    // when scanData exists, fetchSummaryFromData already handles it above
+    if (scanId && !aiSummary && !scanData && !isVisualScan) {
       fetchSummary();
     }
   }, [scanId]);
@@ -82,7 +108,7 @@ const ScanResultScreen = () => {
       setAiSummary(result.summary);
     } else {
       console.log('Failed to generate summary:', result.error);
-      setAiSummary(`AI summary unavailable: ${result.error || 'Service not responding'}`);
+      setAiSummary('');
     }
     setLoadingSummary(false);
   };
@@ -94,32 +120,27 @@ const ScanResultScreen = () => {
       setAiSummary(result.summary);
     } else {
       console.log('Failed to generate summary:', result.error);
-      setAiSummary(`AI summary unavailable: ${result.error || 'Service not responding'}`);
+      setAiSummary('');
     }
     setLoadingSummary(false);
   };
 
-  // handle item type selection and recalculate impact
   const handleItemTypeSelect = async (itemType) => {
     setSelectedItemType(itemType.name);
     setShowItemTypeModal(false);
-    
-    // recalculate with new item type
+
     const newScanData = {
       ...updatedScanData,
       itemType: itemType.name,
       brand: brandName || updatedScanData.brand,
     };
-    
-    // save updated scan to backend to recalculate environmental impact
+
     const result = await saveScanToBackend(newScanData);
-    
     if (result.success && result.scan) {
       setUpdatedScanData(result.scan);
     }
   };
 
-  // share scan to community feed
   const handleShareScan = async ({ caption, isPublic }) => {
     if (isGuest) {
       Alert.alert('Sign In Required', 'Create an account to share scans with the community.');
@@ -133,7 +154,6 @@ const ScanResultScreen = () => {
       });
       if (result.success) {
         setShowShareModal(false);
-        // check for share achievement
         await checkAchievements('share', {});
         Alert.alert('Shared!', 'Your scan has been posted to the community feed.');
       } else {
@@ -185,9 +205,8 @@ const ScanResultScreen = () => {
     careInstructions = [],
   } = updatedScanData || {};
 
-  // use item_type from database or itemType, update selectedItemType on load
   const displayItemType = item_type || itemType || selectedItemType;
-  
+
   useEffect(() => {
     if (item_type || itemType) {
       setSelectedItemType(item_type || itemType);
@@ -205,9 +224,15 @@ const ScanResultScreen = () => {
     color: careInstructions.filter(i => i.type === 'color'),
   } : {};
 
+  const waterVal = water_usage_liters != null && typeof water_usage_liters === 'number'
+    ? water_usage_liters.toFixed(1) + 'L' : '--';
+  const carbonVal = carbon_footprint_kg != null && typeof carbon_footprint_kg === 'number'
+    ? carbon_footprint_kg.toFixed(2) + 'kg' : '--';
+  const weightVal = item_weight_grams ? item_weight_grams + 'g' : '--';
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <TouchableOpacity
           onPress={() => navigation.navigate('Home')}
           style={styles.backButton}
@@ -217,15 +242,75 @@ const ScanResultScreen = () => {
           <Text style={styles.backText}>← Home</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Scan Results</Text>
-
-        {/* Scan Image */}
-        {(updatedScanData?.imageUrl || updatedScanData?.image_url) && (
-          <Image
-            source={{ uri: updatedScanData.imageUrl || updatedScanData.image_url }}
-            style={styles.scanImage}
-            resizeMode="cover"
-          />
+        {/* Hero Section - Scan image with grade overlay */}
+        {(updatedScanData?.imageUrl || updatedScanData?.image_url) ? (
+          <View style={styles.heroImageContainer}>
+            <Image
+              source={{ uri: updatedScanData.imageUrl || updatedScanData.image_url }}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
+            <View style={styles.heroImageOverlay} />
+            {/* Grade badge overlaid on image */}
+            {isVisualScan ? (
+              <View style={styles.heroOverlayBadge}>
+                <View style={styles.visualScanBadge}>
+                  <Text style={styles.visualScanBadgeText}>Visual Scan</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.heroOverlayBadge}>
+                <GradeIndicator grade={grade} size="medium" />
+                <Text style={styles.heroOverlayScore}>{score}/100</Text>
+              </View>
+            )}
+            {/* Info bar at bottom of image */}
+            <View style={styles.heroImageInfo}>
+              <Text style={styles.heroImageBrand}>{brand}</Text>
+              <TouchableOpacity
+                style={styles.heroItemType}
+                onPress={() => setShowItemTypeModal(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Change item type"
+              >
+                <Text style={styles.heroItemTypeText}>{displayItemType}</Text>
+                <Text style={styles.heroDropdown}>▼</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.heroSection}>
+            {isVisualScan ? (
+              <>
+                <View style={styles.visualScanBadge}>
+                  <Text style={styles.visualScanBadgeText}>Visual Scan</Text>
+                </View>
+                <Text style={styles.heroBrand}>{brand}</Text>
+              </>
+            ) : (
+              <>
+                <GradeIndicator grade={grade} size="large" />
+                <Text style={styles.heroScore}>{score}/100</Text>
+                <Text style={styles.heroBrand}>{brand}</Text>
+              </>
+            )}
+            <TouchableOpacity
+              style={styles.heroItemType}
+              onPress={() => setShowItemTypeModal(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Change item type"
+            >
+              <Text style={styles.heroItemTypeText}>{displayItemType}</Text>
+              <Text style={styles.heroDropdown}>▼</Text>
+            </TouchableOpacity>
+            {madeIn && madeIn !== 'Undetected' && (
+              <Text style={styles.heroMadeIn}>Made in {madeIn}</Text>
+            )}
+          </View>
+        )}
+        {/* Made in label (shown under image hero) */}
+        {(updatedScanData?.imageUrl || updatedScanData?.image_url) && madeIn && madeIn !== 'Undetected' && (
+          <Text style={[styles.heroMadeIn, { textAlign: 'center', marginBottom: spacing.md }]}>Made in {madeIn}</Text>
         )}
 
         {/* Tab Selector */}
@@ -252,168 +337,188 @@ const ScanResultScreen = () => {
 
         {activeTab === 'sustainability' ? (
           <>
-            {/* Sustainability content */}
-
-        <Card style={styles.gradeCard}>
-          <View style={styles.gradeContainer}>
-            <GradeIndicator grade={grade} />
-            <View style={styles.gradeInfo}>
-              <Text style={styles.gradeLabel}>Environmental Impact</Text>
-              <Text style={styles.scoreText}>{score}/100</Text>
-            </View>
-          </View>
-        </Card>
-
-        <Card style={styles.detailsCard}>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Brand</Text>
-            <Text style={styles.value}>{brand}</Text>
-          </View>
-          <View style={styles.divider} />
-          <TouchableOpacity 
-            style={styles.infoRow}
-            onPress={() => setShowItemTypeModal(true)}
-          >
-            <Text style={styles.label}>Item Type</Text>
-            <View style={styles.selectableValue}>
-              <Text style={styles.value}>{displayItemType}</Text>
-              <Text style={styles.dropdownArrow}>▼</Text>
-            </View>
-          </TouchableOpacity>
-          {madeIn && madeIn !== 'Undetected' && (
-            <>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>Made in</Text>
-                <Text style={styles.value}>{madeIn}</Text>
+            {/* Quick Stats Row - hide for visual scans */}
+            {!isVisualScan && (
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statIcon}>💧</Text>
+                <Text style={styles.statValue}>{waterVal}</Text>
+                <Text style={styles.statLabel}>Water</Text>
               </View>
-            </>
-          )}
-          {item_weight_grams && (
-            <>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <Text style={styles.label}>Est. Weight</Text>
-                <Text style={styles.value}>{item_weight_grams}g</Text>
+              <View style={styles.statCard}>
+                <Text style={styles.statIcon}>☁️</Text>
+                <Text style={styles.statValue}>{carbonVal}</Text>
+                <Text style={styles.statLabel}>CO₂</Text>
               </View>
-            </>
-          )}
-        </Card>
-
-        <Card style={styles.metricsCard}>
-          <Text style={styles.sectionTitle}>Environmental Metrics</Text>
-          {water_usage_liters != null && typeof water_usage_liters === 'number' ? (
-            <View style={styles.infoRow}>
-              <Text style={styles.label}>Water Usage</Text>
-              <Text style={styles.value}>{water_usage_liters.toFixed(1)}L</Text>
-            </View>
-          ) : (
-            <View style={styles.infoRow}>
-              <Text style={styles.label}>Water Usage</Text>
-              <Text style={styles.value}>Calculating...</Text>
-            </View>
-          )}
-          <View style={styles.divider} />
-          {carbon_footprint_kg != null && typeof carbon_footprint_kg === 'number' ? (
-            <View style={styles.infoRow}>
-              <Text style={styles.label}>Carbon Footprint</Text>
-              <Text style={styles.value}>{carbon_footprint_kg.toFixed(2)} kg CO₂</Text>
-            </View>
-          ) : (
-            <View style={styles.infoRow}>
-              <Text style={styles.label}>Carbon Footprint</Text>
-              <Text style={styles.value}>Calculating...</Text>
-            </View>
-          )}
-        </Card>
-
-        <Card style={styles.summaryCard}>
-          <Text style={styles.sectionTitle}>AI Environmental Analysis</Text>
-          {loadingSummary ? (
-            <Text style={styles.summaryText}>Generating insights...</Text>
-          ) : aiSummary ? (
-            <Text style={styles.summaryText}>{aiSummary}</Text>
-          ) : (
-            <Text style={styles.summaryText}>Summary unavailable</Text>
-          )}
-        </Card>
-
-        <Card style={styles.fibersCard}>
-          <Text style={styles.sectionTitle}>Fiber Composition</Text>
-          {fibers.length > 0 ? (
-            fibers.map((fiber, index) => (
-              <View key={index} style={styles.fiberRow}>
-                <Text style={styles.fiberName}>{fiber.name}</Text>
-                <Text style={styles.fiberPercent}>{fiber.percentage}%</Text>
+              <View style={styles.statCard}>
+                <Text style={styles.statIcon}>⚖️</Text>
+                <Text style={styles.statValue}>{weightVal}</Text>
+                <Text style={styles.statLabel}>Weight</Text>
               </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No fiber data available</Text>
-          )}
-        </Card>
+            </View>
+            )}
 
-        {/* Achievement Notification */}
-        {newlyUnlocked.length > 0 && (
-          <Card style={styles.achievementCard}>
-            <Text style={styles.achievementHeader}>Achievement Unlocked!</Text>
-            {newlyUnlocked.map((a, i) => (
-              <Text key={i} style={styles.achievementName}>
-                {a.name}
-              </Text>
-            ))}
-            <TouchableOpacity onPress={() => navigation.navigate('Challenges')}>
-              <Text style={styles.achievementLink}>View All Achievements →</Text>
-            </TouchableOpacity>
-          </Card>
-        )}
-
-        {/* Better Alternatives Prompt (for D and F grades) */}
-        {(grade === 'D' || grade === 'F') && (
-          <TouchableOpacity
-            style={styles.alternativesPrompt}
-            onPress={() => navigation.navigate('Alternatives', { scanData: updatedScanData, scanId })}
-          >
-            <Card style={styles.alternativesCard}>
-              <View style={styles.alternativesIconBox}><Text style={styles.alternativesIconText}>ALT</Text></View>
-              <View style={styles.alternativesInfo}>
-                <Text style={styles.alternativesTitle}>Better Alternatives Available</Text>
-                <Text style={styles.alternativesDesc}>
-                  Discover more sustainable options for this item type
-                </Text>
+            {/* AI Environmental Analysis - hide for visual scans */}
+            {!isVisualScan && (
+            <Card style={styles.summaryCard}>
+              <View style={styles.summaryHeader}>
+                <Text style={styles.sectionTitle}>AI Analysis</Text>
+                {loadingSummary && (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                )}
               </View>
-              <Text style={styles.alternativesArrow}>→</Text>
+              {loadingSummary ? (
+                <Text style={styles.summaryText}>Generating environmental insights...</Text>
+              ) : aiSummary ? (
+                <Text style={styles.summaryText}>{aiSummary}</Text>
+              ) : (
+                <Text style={styles.summaryTextMuted}>AI analysis unavailable - service may be loading</Text>
+              )}
             </Card>
-          </TouchableOpacity>
-        )}
+            )}
 
-        <View style={styles.actions}>
-          <Button
-            title="View Breakdown"
-            onPress={() => navigation.navigate('Breakdown', { scanData: updatedScanData, scanId })}
-          />
-          {scanId && !isGuest && (
-            <Button
-              title="Share to Community"
-              onPress={() => setShowShareModal(true)}
-              variant="secondary"
-              style={styles.shareButton}
-            />
-          )}
-          <Button
-            title="Edit Details"
-            onPress={() => navigation.navigate('EditScan', { scanData: updatedScanData, scanId })}
-            variant="secondary"
-            style={styles.editButton}
-          />
-          {scanId && (
-            <Button
-              title="Delete Scan"
-              onPress={handleDelete}
-              variant="secondary"
-              style={styles.deleteButton}
-            />
-          )}
-        </View>
+            {/* Fiber Composition with progress bars - hide for visual scans */}
+            {!isVisualScan && (
+            <Card style={styles.fibersCard}>
+              <Text style={styles.sectionTitle}>Fiber Composition</Text>
+              {fibers.length > 0 ? (
+                fibers.map((fiber, index) => (
+                  <View key={index} style={styles.fiberItem}>
+                    <View style={styles.fiberLabelRow}>
+                      <Text style={styles.fiberName}>{fiber.name}</Text>
+                      <Text style={styles.fiberPercent}>{fiber.percentage}%</Text>
+                    </View>
+                    <View style={styles.fiberBarBg}>
+                      <View
+                        style={[
+                          styles.fiberBarFill,
+                          {
+                            width: `${Math.min(fiber.percentage, 100)}%`,
+                            backgroundColor: getGradeColor(grade),
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>No fiber data available</Text>
+              )}
+            </Card>
+            )}
+
+            {/* Sustainable Alternatives - always visible */}
+            <TouchableOpacity
+              style={styles.alternativesPrompt}
+              onPress={() => navigation.navigate('Alternatives', { scanData: updatedScanData, scanId })}
+              accessibilityRole="button"
+              accessibilityLabel="View sustainable alternatives"
+            >
+              <Card style={styles.alternativesCard}>
+                <View style={styles.alternativesIconBox}>
+                  <Text style={styles.alternativesIconText}>♻</Text>
+                </View>
+                <View style={styles.alternativesInfo}>
+                  <Text style={styles.alternativesTitle}>Sustainable Alternatives</Text>
+                  <Text style={styles.alternativesDesc}>
+                    Discover eco-friendly options for this {displayItemType.toLowerCase()}
+                  </Text>
+                </View>
+                <Text style={styles.alternativesArrow}>→</Text>
+              </Card>
+            </TouchableOpacity>
+
+            {/* Achievement Notification */}
+            {newlyUnlocked.length > 0 && (
+              <Card style={styles.achievementCard}>
+                <Text style={styles.achievementHeader}>Achievement Unlocked!</Text>
+                {newlyUnlocked.map((a, i) => (
+                  <Text key={i} style={styles.achievementName}>
+                    {a.name}
+                  </Text>
+                ))}
+                <TouchableOpacity onPress={() => navigation.navigate('Challenges')}>
+                  <Text style={styles.achievementLink}>View All Achievements →</Text>
+                </TouchableOpacity>
+              </Card>
+            )}
+
+            {/* Visually Similar Alternatives (shown when CLIP embedding available) */}
+            {(visualRecs.length > 0 || loadingVisualRecs) && (
+              <Card style={styles.visualRecsCard}>
+                <Text style={styles.sectionTitle}>Visually Similar Alternatives</Text>
+                {loadingVisualRecs ? (
+                  <View style={styles.visualRecsLoading}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.summaryText}>Finding similar items...</Text>
+                  </View>
+                ) : visualRecs.length > 0 ? (
+                  <>
+                    {visualRecs.slice(0, 3).map((rec, i) => (
+                      <TouchableOpacity
+                        key={rec.id || i}
+                        style={styles.visualRecItem}
+                        onPress={() => navigation.navigate('Alternatives', { scanData: updatedScanData, scanId })}
+                      >
+                        <View style={styles.visualRecLeft}>
+                          <Text style={styles.visualRecBrand}>{rec.brand}</Text>
+                          <Text style={styles.visualRecName}>{rec.productName}</Text>
+                        </View>
+                        <View style={styles.visualRecRight}>
+                          <Text style={styles.visualRecMatchPct}>{rec.matchPercentage}%</Text>
+                          <Text style={styles.visualRecMatchLabel}>match</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                    {visualRecs.length > 3 && (
+                      <TouchableOpacity
+                        onPress={() => navigation.navigate('Alternatives', { scanData: updatedScanData, scanId })}
+                      >
+                        <Text style={styles.visualRecsSeeAll}>
+                          See all {visualRecs.length} matches →
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.summaryTextMuted}>
+                    No visually similar alternatives found yet
+                  </Text>
+                )}
+              </Card>
+            )}
+
+            {/* Action Buttons - compact row */}
+            <View style={styles.actionsRow}>
+              {scanId && !isGuest && (
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() => setShowShareModal(true)}
+                >
+                  <Text style={styles.actionBtnText}>Share</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => navigation.navigate('EditScan', { scanData: updatedScanData, scanId })}
+              >
+                <Text style={styles.actionBtnText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => navigation.navigate('Breakdown', { scanData: updatedScanData, scanId })}
+              >
+                <Text style={styles.actionBtnText}>Details</Text>
+              </TouchableOpacity>
+              {scanId && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.actionBtnDanger]}
+                  onPress={handleDelete}
+                >
+                  <Text style={[styles.actionBtnText, styles.actionBtnDangerText]}>Delete</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </>
         ) : (
           <>
@@ -439,7 +544,7 @@ const ScanResultScreen = () => {
 
             {groupedCareInstructions.bleach && groupedCareInstructions.bleach.length > 0 && (
               <Card style={styles.careCard}>
-                <Text style={styles.sectionTitle}>△ Bleaching</Text>
+                <Text style={styles.sectionTitle}>Bleaching</Text>
                 {groupedCareInstructions.bleach.map((instruction, index) => (
                   <View key={index} style={styles.careRow}>
                     <View style={styles.careIconContainer}>
@@ -453,7 +558,7 @@ const ScanResultScreen = () => {
 
             {groupedCareInstructions.dry && groupedCareInstructions.dry.length > 0 && (
               <Card style={styles.careCard}>
-                <Text style={styles.sectionTitle}>⬜ Drying</Text>
+                <Text style={styles.sectionTitle}>Drying</Text>
                 {groupedCareInstructions.dry.map((instruction, index) => (
                   <View key={index} style={styles.careRow}>
                     <View style={styles.careIconContainer}>
@@ -472,7 +577,7 @@ const ScanResultScreen = () => {
 
             {groupedCareInstructions.iron && groupedCareInstructions.iron.length > 0 && (
               <Card style={styles.careCard}>
-                <Text style={styles.sectionTitle}>⚠ Ironing</Text>
+                <Text style={styles.sectionTitle}>Ironing</Text>
                 {groupedCareInstructions.iron.map((instruction, index) => (
                   <View key={index} style={styles.careRow}>
                     <View style={styles.careIconContainer}>
@@ -491,7 +596,7 @@ const ScanResultScreen = () => {
 
             {groupedCareInstructions.dryclean && groupedCareInstructions.dryclean.length > 0 && (
               <Card style={styles.careCard}>
-                <Text style={styles.sectionTitle}>○ Dry Cleaning</Text>
+                <Text style={styles.sectionTitle}>Dry Cleaning</Text>
                 {groupedCareInstructions.dryclean.map((instruction, index) => (
                   <View key={index} style={styles.careRow}>
                     <View style={styles.careIconContainer}>
@@ -524,7 +629,6 @@ const ScanResultScreen = () => {
         )}
       </ScrollView>
 
-      {/* reusable item type picker modal */}
       <ItemTypePickerModal
         visible={showItemTypeModal}
         onClose={() => setShowItemTypeModal(false)}
@@ -532,7 +636,6 @@ const ScanResultScreen = () => {
         selectedType={selectedItemType}
       />
 
-      {/* Share to community modal */}
       <ShareScanModal
         visible={showShareModal}
         onClose={() => setShowShareModal(false)}
@@ -551,10 +654,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xxl,
   },
   backButton: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     minHeight: 44,
     justifyContent: 'center',
   },
@@ -563,118 +666,117 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
-  title: {
-    ...typography.h1,
+
+  // Hero section
+  heroSection: {
+    alignItems: 'center',
     marginBottom: spacing.lg,
+    paddingVertical: spacing.md,
   },
-  scanImage: {
+  heroImageContainer: {
     width: '100%',
-    height: 300,
+    height: 280,
     borderRadius: borderRadius.lg,
+    overflow: 'hidden',
     marginBottom: spacing.lg,
     backgroundColor: colors.surface,
+    position: 'relative',
   },
-  gradeCard: {
-    marginBottom: spacing.md,
+  heroImage: {
+    width: '100%',
+    height: '100%',
   },
-  detailsCard: {
-    marginBottom: spacing.md,
+  heroImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
   },
-  metricsCard: {
-    marginBottom: spacing.md,
-  },
-  summaryCard: {
-    marginBottom: spacing.md,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  summaryText: {
-    ...typography.body,
-    lineHeight: 24,
-    color: colors.text,
-  },
-  fibersCard: {
-    marginBottom: spacing.md,
-  },
-  gradeContainer: {
-    flexDirection: 'row',
+  heroOverlayBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
     alignItems: 'center',
   },
-  gradeInfo: {
-    marginLeft: spacing.lg,
+  heroOverlayScore: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginTop: 4,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  heroImageInfo: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroImageBrand: {
+    ...typography.h3,
+    color: '#FFFFFF',
+    fontWeight: '700',
     flex: 1,
   },
-  gradeLabel: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  scoreText: {
-    ...typography.h2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  label: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  value: {
-    ...typography.body,
-    fontWeight: '600',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.xs,
-  },
-  sectionTitle: {
-    ...typography.h3,
-    marginBottom: spacing.md,
-  },
-  fiberRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-  },
-  fiberName: {
-    ...typography.body,
-  },
-  fiberPercent: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  emptyText: {
-    ...typography.bodySmall,
-    color: colors.textTertiary,
-    fontStyle: 'italic',
-  },
-  actions: {
-    marginTop: spacing.lg,
-  },
-  editButton: {
+  heroScore: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.textPrimary,
     marginTop: spacing.sm,
   },
-  deleteButton: {
-    marginTop: spacing.sm,
-    borderColor: colors.error,
+  visualScanBadge: {
+    backgroundColor: colors.primaryLight,
     borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
   },
-  selectableValue: {
+  visualScanBadgeText: {
+    ...typography.h3,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  heroBrand: {
+    ...typography.h3,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  heroItemType: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: borderRadius.full,
   },
-  dropdownArrow: {
-    fontSize: 12,
-    color: colors.textSecondary,
+  heroItemTypeText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
+  heroDropdown: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    marginLeft: spacing.xs,
+  },
+  heroMadeIn: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginTop: spacing.xs,
+  },
+
+  // Tab selector
   tabContainer: {
     flexDirection: 'row',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     backgroundColor: colors.surfaceSecondary,
     borderRadius: borderRadius.md,
     padding: 4,
@@ -700,6 +802,198 @@ const styles = StyleSheet.create({
     color: colors.background,
     fontWeight: '600',
   },
+
+  // Quick stats row
+  statsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  statIcon: {
+    fontSize: 20,
+    marginBottom: spacing.xs,
+  },
+  statValue: {
+    ...typography.body,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginTop: 2,
+  },
+
+  // AI summary
+  summaryCard: {
+    marginBottom: spacing.md,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  summaryText: {
+    ...typography.body,
+    lineHeight: 24,
+    color: colors.textPrimary,
+  },
+  summaryTextMuted: {
+    ...typography.bodySmall,
+    color: colors.textTertiary,
+    fontStyle: 'italic',
+    lineHeight: 22,
+  },
+
+  // Fibers
+  fibersCard: {
+    marginBottom: spacing.md,
+  },
+  fiberItem: {
+    marginBottom: spacing.sm,
+  },
+  fiberLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  fiberName: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+  },
+  fiberPercent: {
+    ...typography.bodySmall,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  fiberBarBg: {
+    height: 8,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  fiberBarFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  emptyText: {
+    ...typography.bodySmall,
+    color: colors.textTertiary,
+    fontStyle: 'italic',
+  },
+
+  // Alternatives prompt
+  alternativesPrompt: {
+    marginBottom: spacing.md,
+  },
+  alternativesCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  alternativesIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primaryMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  alternativesIconText: {
+    fontSize: 20,
+  },
+  alternativesInfo: {
+    flex: 1,
+  },
+  alternativesTitle: {
+    ...typography.body,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  alternativesDesc: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  alternativesArrow: {
+    ...typography.h2,
+    color: colors.primary,
+    marginLeft: spacing.sm,
+  },
+
+  // Achievement
+  achievementCard: {
+    marginBottom: spacing.md,
+    backgroundColor: colors.warningLight,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+  },
+  achievementHeader: {
+    ...typography.body,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  achievementName: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  achievementLink: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: spacing.xs,
+  },
+
+  // Action buttons row
+  actionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  actionBtn: {
+    flex: 1,
+    minWidth: 70,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  actionBtnDanger: {
+    borderColor: colors.error,
+  },
+  actionBtnDangerText: {
+    color: colors.error,
+  },
+
+  sectionTitle: {
+    ...typography.h3,
+    marginBottom: spacing.md,
+  },
+
+  // Care instructions
   careCard: {
     marginBottom: spacing.md,
   },
@@ -733,78 +1027,56 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
   },
-  // social & gamification styles
-  shareButton: {
-    marginTop: spacing.sm,
-    borderColor: colors.primary,
-    borderWidth: 1,
-  },
-  achievementCard: {
-    marginBottom: spacing.md,
-    backgroundColor: colors.warningLight,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.warning,
-  },
-  achievementHeader: {
-    ...typography.body,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  achievementName: {
-    ...typography.bodySmall,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
-  },
-  achievementLink: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: '600',
-    marginTop: spacing.xs,
-  },
-  alternativesPrompt: {
+
+  // Visual recommendations
+  visualRecsCard: {
     marginBottom: spacing.md,
   },
-  alternativesCard: {
+  visualRecsLoading: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-    borderWidth: 1,
-    borderColor: colors.primary,
+    gap: spacing.sm,
   },
-  alternativesIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
+  visualRecItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginRight: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  alternativesIconText: {
-    ...typography.body,
-    fontWeight: '700',
-    color: colors.primary,
-    fontSize: 12,
-  },
-  alternativesInfo: {
+  visualRecLeft: {
     flex: 1,
   },
-  alternativesTitle: {
+  visualRecBrand: {
     ...typography.body,
-    fontWeight: '700',
+    fontWeight: '600',
     color: colors.textPrimary,
   },
-  alternativesDesc: {
-    ...typography.caption,
+  visualRecName: {
+    ...typography.bodySmall,
     color: colors.textSecondary,
   },
-  alternativesArrow: {
-    ...typography.h2,
+  visualRecRight: {
+    alignItems: 'center',
+    marginLeft: spacing.md,
+  },
+  visualRecMatchPct: {
+    ...typography.h3,
     color: colors.primary,
-    marginLeft: spacing.sm,
+    fontWeight: '700',
+  },
+  visualRecMatchLabel: {
+    ...typography.caption,
+    color: colors.textTertiary,
+  },
+  visualRecsSeeAll: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: spacing.md,
+    textAlign: 'center',
   },
 });
 
 export default ScanResultScreen;
-
-

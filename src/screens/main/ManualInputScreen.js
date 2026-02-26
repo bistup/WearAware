@@ -4,27 +4,33 @@
 // enter brand, item type, and fiber composition manually - has dropdowns for easier selection
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import FiberPickerModal from '../../components/FiberPickerModal';
 import ItemTypePickerModal from '../../components/ItemTypePickerModal';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 import { saveScanToBackend } from '../../services/api';
+import { uploadScanImages } from '../../services/imageUpload';
 import { calculateImpactScore } from '../../utils/impactCalculator';
 import { ITEM_TYPES } from '../../constants/constants';
+import { useAuth } from '../../context/AuthContext';
 
 const ManualInputScreen = () => {
   const navigation = useNavigation();
+  const { isGuest } = useAuth();
   const [brand, setBrand] = useState('');
   const [itemType, setItemType] = useState('');
+  const [selectedGender, setSelectedGender] = useState(null); // 'mens' or 'womens'
   const [fibers, setFibers] = useState([{ name: '', percentage: '' }]);
   const [loading, setLoading] = useState(false);
   const [showFiberPicker, setShowFiberPicker] = useState(false);
   const [showItemTypePicker, setShowItemTypePicker] = useState(false);
   const [currentFiberIndex, setCurrentFiberIndex] = useState(0);
+  const [garmentImageUri, setGarmentImageUri] = useState(null);
 
   const handleAddFiber = () => {
     setFibers([...fibers, { name: '', percentage: '' }]);
@@ -60,6 +66,24 @@ const ManualInputScreen = () => {
     setShowItemTypePicker(false);
   };
 
+  const handlePickGarmentImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsEditing: true,
+        aspect: [3, 4],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setGarmentImageUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick image');
+      console.error('Image picker error:', error);
+    }
+  };
+
   const styles = getStyles(colors, typography, spacing, borderRadius);
 
   const handleSubmit = async () => {
@@ -90,6 +114,23 @@ const ManualInputScreen = () => {
     // calculate impact with weight
     const { score, grade, waterUsage, carbonFootprint } = calculateImpactScore(cleanedFibers, itemWeightGrams);
 
+    // upload garment image if provided (and user is logged in)
+    let imageUrl = null;
+    let thumbnailUrl = null;
+    if (garmentImageUri && !isGuest) {
+      try {
+        const uploadResult = await uploadScanImages(garmentImageUri, Date.now().toString());
+        if (uploadResult.success) {
+          imageUrl = uploadResult.imageUrl;
+          thumbnailUrl = uploadResult.thumbnailUrl;
+        } else {
+          console.warn('Garment image upload failed:', uploadResult.error);
+        }
+      } catch (uploadErr) {
+        console.warn('Garment image upload error:', uploadErr.message);
+      }
+    }
+
     const scanData = {
       brand: brand.trim(),
       itemType: itemType.trim(),
@@ -104,6 +145,9 @@ const ManualInputScreen = () => {
       carbon_footprint_kg: carbonFootprint,
       item_weight_grams: itemWeightGrams,
       scanType: 'manual',
+      imageUrl,
+      thumbnailUrl,
+      gender: selectedGender,
     };
 
     const result = await saveScanToBackend(scanData);
@@ -112,7 +156,7 @@ const ManualInputScreen = () => {
     // navigate to results if save succeeded
     if (result.success) {
       navigation.navigate('ScanResult', {
-        scanData: result.scan || scanData, // use backend data if available
+        scanData: result.scan || scanData,
         scanId: result.scanId,
       });
     } else {
@@ -143,6 +187,24 @@ const ManualInputScreen = () => {
             </Text>
             <Text style={styles.dropdownArrow}>▼</Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Gender</Text>
+          <View style={styles.genderSelector}>
+            <TouchableOpacity
+              style={[styles.genderButton, selectedGender === 'mens' && styles.genderButtonActive]}
+              onPress={() => setSelectedGender('mens')}
+            >
+              <Text style={[styles.genderButtonText, selectedGender === 'mens' && styles.genderButtonTextActive]}>Men's</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.genderButton, selectedGender === 'womens' && styles.genderButtonActive]}
+              onPress={() => setSelectedGender('womens')}
+            >
+              <Text style={[styles.genderButtonText, selectedGender === 'womens' && styles.genderButtonTextActive]}>Women's</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Text style={styles.sectionTitle}>Fiber Composition</Text>
@@ -189,6 +251,28 @@ const ManualInputScreen = () => {
           variant="secondary"
           style={styles.addButton}
         />
+
+        <Text style={styles.sectionTitle}>Garment Photo (Optional)</Text>
+        <Text style={styles.sectionSubtitle}>Upload a photo for AI visual matching</Text>
+
+        {garmentImageUri ? (
+          <View style={styles.imagePreviewContainer}>
+            <Image source={{ uri: garmentImageUri }} style={styles.imagePreview} />
+            <View style={styles.imageActions}>
+              <TouchableOpacity onPress={handlePickGarmentImage} style={styles.changeImageButton}>
+                <Text style={styles.changeImageText}>Change Photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setGarmentImageUri(null)} style={styles.removeImageButton}>
+                <Text style={styles.removeImageText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={handlePickGarmentImage} style={styles.imagePicker}>
+            <Text style={styles.imagePickerIcon}>+</Text>
+            <Text style={styles.imagePickerText}>Upload Garment Photo</Text>
+          </TouchableOpacity>
+        )}
 
         <Button title="Calculate Impact" onPress={handleSubmit} loading={loading} />
       </ScrollView>
@@ -264,6 +348,31 @@ const getStyles = (colors, typography, spacing, borderRadius) => StyleSheet.crea
     ...typography.body,
     color: colors.text,
   },
+  genderSelector: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  genderButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+  },
+  genderButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  genderButtonText: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  genderButtonTextActive: {
+    color: colors.primary,
+  },
   sectionTitle: {
     ...typography.h3,
     marginBottom: spacing.xs,
@@ -336,6 +445,58 @@ const getStyles = (colors, typography, spacing, borderRadius) => StyleSheet.crea
   },
   addButton: {
     marginBottom: spacing.lg,
+  },
+  imagePreviewContainer: {
+    marginBottom: spacing.lg,
+    alignItems: 'center',
+  },
+  imagePreview: {
+    width: 200,
+    height: 260,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.sm,
+  },
+  imageActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  changeImageButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  changeImageText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  removeImageButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  removeImageText: {
+    ...typography.bodySmall,
+    color: colors.error,
+    fontWeight: '600',
+  },
+  imagePicker: {
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surface,
+  },
+  imagePickerIcon: {
+    fontSize: 32,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  imagePickerText: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
 });
 

@@ -5,17 +5,24 @@
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  FIREBASE_API_KEY,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_APP_ID,
+} from '@env';
 
-// firebase configuration
+// firebase configuration - loaded from .env file
 const firebaseConfig = {
-  apiKey: "GOOGLE_PLACES_API_KEY_REMOVED",
-  authDomain: "wearaware-c2a46.firebaseapp.com",
-  projectId: "wearaware-c2a46",
-  storageBucket: "wearaware-c2a46.firebasestorage.app",
-  messagingSenderId: "605048323002",
-  appId: "1:605048323002:web:54dfe1688339aaa0157b83",
+  apiKey: FIREBASE_API_KEY,
+  authDomain: FIREBASE_AUTH_DOMAIN,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId: FIREBASE_APP_ID,
 };
 
 // initialize Firebase
@@ -26,9 +33,6 @@ const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage),
 });
 
-// initialize Storage
-const storage = getStorage(app);
-
-export { auth, storage };
+export { auth };
 
 

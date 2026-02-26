@@ -4,7 +4,7 @@
 // includes brand, price, grade, and savings vs scanned item
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Image } from 'react-native';
 import Card from './Card';
 import { colors, typography, spacing, borderRadius, getGradeColor } from '../theme/theme';
 
@@ -24,6 +24,13 @@ const AlternativeCard = ({ recommendation, scannedItem, onWishlist, onCompare, i
 
   return (
     <Card style={styles.card}>
+      {recommendation.imageUrl && (
+        <Image
+          source={{ uri: recommendation.imageUrl }}
+          style={styles.productImage}
+          resizeMode="cover"
+        />
+      )}
       <View style={styles.header}>
         <View style={[styles.gradeBadge, { backgroundColor: getGradeColor(recommendation.grade) }]}>
           <Text style={styles.gradeText}>{recommendation.grade}</Text>
@@ -111,6 +118,14 @@ const AlternativeCard = ({ recommendation, scannedItem, onWishlist, onCompare, i
 const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.md,
+    overflow: 'hidden',
+  },
+  productImage: {
+    width: '100%',
+    height: 180,
+    borderTopLeftRadius: borderRadius.md,
+    borderTopRightRadius: borderRadius.md,
+    marginBottom: spacing.sm,
   },
   header: {
     flexDirection: 'row',

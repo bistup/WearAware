@@ -2,6 +2,8 @@
 // date: 10/12/2025
 // ai service for generating environmental impact summaries using ollama llm
 
+const fetch = require('node-fetch');
+
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'localhost';
 const OLLAMA_PORT = process.env.OLLAMA_PORT || 11434;
 const OLLAMA_URL = `http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/generate`;
@@ -74,8 +76,8 @@ Keep it educational, positive, and under 100 words. Do not use bullet points.`;
           },
         }),
       }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Ollama timeout')), 15000)
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Ollama timeout')), 60000)
       ),
     ]);
 
@@ -140,7 +142,7 @@ const checkOllamaHealth = async () => {
   try {
     const response = await fetch(`http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/tags`, {
       method: 'GET',
-      signal: AbortSignal.timeout(5000), // 5 second timeout
+      timeout: 5000,
     });
     return response.ok;
   } catch (error) {

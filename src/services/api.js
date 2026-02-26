@@ -251,10 +251,9 @@ export const deleteComment = async (commentId) => {
 // aLTERNATIVES - recommendations, comparison, wishlist
 // ============================================================================
 
-export const fetchRecommendations = async (itemType, currentScore) => {
+export const fetchRecommendations = async (itemType) => {
   const params = new URLSearchParams();
   if (itemType) params.append('itemType', itemType);
-  if (currentScore) params.append('currentScore', currentScore);
   return apiFetch(
     `${BACKEND_API_URL}/alternatives/recommendations?${params.toString()}`,
     {},
@@ -343,5 +342,63 @@ export const fetchLeaderboard = async (period = 'weekly') => {
     `${BACKEND_API_URL}/gamification/leaderboard?period=${period}&firebaseUid=${getUid() || ''}`,
     {},
     { leaderboard: [] }
+  );
+};
+
+// ============================================================================
+// VISUAL SCAN - CLIP image similarity
+// ============================================================================
+
+export const createVisualScan = async (imageUrl, itemType, brand) => {
+  return apiFetch(`${BACKEND_API_URL}/scans/visual-scan`, {
+    method: 'POST',
+    body: JSON.stringify({
+      firebaseUid: getUid(),
+      imageUrl,
+      itemType,
+      brand,
+    }),
+  });
+};
+
+export const fetchVisualRecommendations = async (scanId) => {
+  return apiFetch(
+    `${BACKEND_API_URL}/scans/visual-recommendations/${scanId}`,
+    {},
+    { recommendations: [] }
+  );
+};
+
+// ============================================================================
+// WEB SEARCH - live product search from the web
+// ============================================================================
+
+export const searchWebAlternatives = async (itemType, primaryFiber, imageUrl, gender) => {
+  const params = new URLSearchParams();
+  if (itemType) params.append('itemType', itemType);
+  if (primaryFiber) params.append('primaryFiber', primaryFiber);
+  if (imageUrl) params.append('imageUrl', imageUrl);
+  if (gender) params.append('gender', gender);
+  return apiFetch(
+    `${BACKEND_API_URL}/alternatives/search?${params.toString()}`,
+    {},
+    { results: [] }
+  );
+};
+
+// ============================================================================
+// EBAY SECOND-HAND - pre-owned clothing search
+// ============================================================================
+
+export const searchSecondHand = async (itemType, primaryFiber, imageUrl, gender) => {
+  const params = new URLSearchParams();
+  if (itemType) params.append('itemType', itemType);
+  if (primaryFiber) params.append('primaryFiber', primaryFiber);
+  if (imageUrl) params.append('imageUrl', imageUrl);
+  if (gender) params.append('gender', gender);
+  return apiFetch(
+    `${BACKEND_API_URL}/alternatives/secondhand?${params.toString()}`,
+    {},
+    { results: [] }
   );
 };
