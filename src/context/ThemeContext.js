@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DevSettings } from 'react-native';
+import * as Updates from 'expo-updates';
 import { applyTheme } from '../theme/theme';
 
 const THEME_MODE_KEY = 'wearaware.themeMode';
@@ -17,6 +18,13 @@ export const ThemeProvider = ({ initialMode = 'light', children }) => {
 
     // Most screens use static StyleSheet values, so a full reload is required
     // to rebuild styles with the selected palette.
+    try {
+      await Updates.reloadAsync();
+      return;
+    } catch {
+      // Fall back in dev client or environments where Updates is unavailable.
+    }
+
     if (DevSettings && typeof DevSettings.reload === 'function') {
       DevSettings.reload();
     }

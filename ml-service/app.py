@@ -14,8 +14,9 @@ app = Flask(__name__)
 CORS(app)
 
 # Initialize CLIP model (loaded once on startup)
+CLIP_MODEL_NAME = os.environ.get("CLIP_MODEL_NAME", "openai/clip-vit-base-patch16")
 print("Loading CLIP model...")
-clip_extractor = CLIPEmbeddingExtractor()
+clip_extractor = CLIPEmbeddingExtractor(model_name=CLIP_MODEL_NAME)
 print("CLIP model loaded successfully!")
 
 @app.route('/health', methods=['GET'])
@@ -23,8 +24,9 @@ def health():
     """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
-        'model': 'clip-vit-base-patch32',
-        'version': '1.0.0'
+        'model': clip_extractor.model_name,
+        'embedding_dimension': clip_extractor.embedding_dim,
+        'version': '1.1.0'
     })
 
 @app.route('/extract-embedding', methods=['POST'])

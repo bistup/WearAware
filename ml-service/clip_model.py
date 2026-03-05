@@ -1,6 +1,6 @@
 """
 CLIP Model Wrapper for Clothing Image Embeddings
-Uses OpenAI's CLIP ViT-B/32 model for fashion similarity
+Uses OpenAI CLIP models for fashion similarity
 """
 
 from transformers import CLIPProcessor, CLIPModel
@@ -15,16 +15,18 @@ class CLIPEmbeddingExtractor:
     Extracts 512-dimensional embeddings from clothing images using CLIP
     """
 
-    def __init__(self, model_name="openai/clip-vit-base-patch32"):
+    def __init__(self, model_name="openai/clip-vit-base-patch16"):
         """
         Initialize CLIP model and processor
 
         Args:
             model_name: HuggingFace model identifier
         """
+        self.model_name = model_name
         print(f"Loading CLIP model: {model_name}")
         self.model = CLIPModel.from_pretrained(model_name)
         self.processor = CLIPProcessor.from_pretrained(model_name)
+        self.embedding_dim = getattr(self.model.config, "projection_dim", None)
 
         # Set to evaluation mode (no training)
         self.model.eval()
@@ -33,7 +35,7 @@ class CLIPEmbeddingExtractor:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model.to(self.device)
 
-        print(f"CLIP model loaded on device: {self.device}")
+        print(f"CLIP model loaded on device: {self.device} (dim={self.embedding_dim})")
 
     def extract_embedding(self, image_url):
         """
