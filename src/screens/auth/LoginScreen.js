@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 
 const LoginScreen = () => {
@@ -50,7 +51,7 @@ const LoginScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View style={styles.logoCircle} accessibilityRole="image" accessibilityLabel="WearAware logo">
-            <Text style={styles.logoText}>WA</Text>
+            <Ionicons name="leaf" size={32} color={colors.background} />
           </View>
           <Text style={styles.title}>WearAware</Text>
           <Text style={styles.subtitle}>Sustainable fashion starts here</Text>
@@ -141,12 +142,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.md,
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.background,
-    letterSpacing: -1,
   },
   title: {
     ...typography.h1,

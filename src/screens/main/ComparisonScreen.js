@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import GradeIndicator from '../../components/GradeIndicator';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 
 const ComparisonScreen = () => {
@@ -21,7 +22,10 @@ const ComparisonScreen = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
+            <View style={styles.backRow}>
+              <Ionicons name="chevron-back" size={20} color={colors.primary} />
+              <Text style={styles.backText}>Back</Text>
+            </View>
           </TouchableOpacity>
         </View>
         <View style={styles.errorContainer}>
@@ -72,7 +76,7 @@ const ComparisonScreen = () => {
           <Text style={[styles.valueText, winner === 1 && styles.winnerText]}>
             {num1.toFixed(2)}{unit}
           </Text>
-          {winner === 1 && <Text style={styles.winnerBadge}>✓</Text>}
+          {winner === 1 && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
         </View>
         <View style={styles.metricLabel}>
           <Text style={styles.labelText}>{label}</Text>
@@ -81,7 +85,7 @@ const ComparisonScreen = () => {
           <Text style={[styles.valueText, winner === 2 && styles.winnerText]}>
             {num2.toFixed(2)}{unit}
           </Text>
-          {winner === 2 && <Text style={styles.winnerBadge}>✓</Text>}
+          {winner === 2 && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
         </View>
       </View>
     );
@@ -166,8 +170,11 @@ const ComparisonScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('History')} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backButton}>
-          <Text style={styles.backText}>← Back to History</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backButton}>
+          <View style={styles.backRow}>
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            <Text style={styles.backText}>Back to History</Text>
+          </View>
         </TouchableOpacity>
         <Text style={styles.title}>Item Comparison</Text>
       </View>
@@ -203,11 +210,15 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   backText: {
     ...typography.body,
     color: colors.primary,
     fontWeight: '600',
-    marginBottom: spacing.sm,
   },
   title: {
     ...typography.h1,
@@ -331,13 +342,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
     gap: spacing.xs,
+    overflow: 'hidden',
   },
   fiberBar: {
     backgroundColor: colors.info,
     borderRadius: borderRadius.sm,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
-    minWidth: 60,
+    minWidth: 40,
+    maxWidth: '75%',
+    overflow: 'hidden',
   },
   fiberBarRight: {
     backgroundColor: colors.accent,

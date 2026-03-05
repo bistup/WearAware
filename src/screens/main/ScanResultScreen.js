@@ -13,6 +13,7 @@ import GradeIndicator from '../../components/GradeIndicator';
 import ItemTypePickerModal from '../../components/ItemTypePickerModal';
 import CareIcon from '../../components/CareIcon';
 import ShareScanModal from '../../components/ShareScanModal';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, getGradeColor } from '../../theme/theme';
 import { deleteScan, saveScanToBackend, generateAiSummary, generateAiSummaryFromData, fetchVisualRecommendations } from '../../services/api';
 import { createPost, checkAchievements, updateChallengeProgress } from '../../services/api';
@@ -234,12 +235,15 @@ const ScanResultScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <TouchableOpacity
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigation.navigate('Tabs', { screen: 'Home' })}
           style={styles.backButton}
           accessibilityRole="button"
           accessibilityLabel="Go back to Home"
         >
-          <Text style={styles.backText}>← Home</Text>
+          <View style={styles.backRow}>
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            <Text style={styles.backText}>Home</Text>
+          </View>
         </TouchableOpacity>
 
         {/* Hero Section - Scan image with grade overlay */}
@@ -274,7 +278,7 @@ const ScanResultScreen = () => {
                 accessibilityLabel="Change item type"
               >
                 <Text style={styles.heroItemTypeText}>{displayItemType}</Text>
-                <Text style={styles.heroDropdown}>▼</Text>
+                <Ionicons name="chevron-down" size={12} color={colors.textTertiary} style={{ marginLeft: spacing.xs }} />
               </TouchableOpacity>
             </View>
           </View>
@@ -301,7 +305,7 @@ const ScanResultScreen = () => {
               accessibilityLabel="Change item type"
             >
               <Text style={styles.heroItemTypeText}>{displayItemType}</Text>
-              <Text style={styles.heroDropdown}>▼</Text>
+              <Ionicons name="chevron-down" size={12} color={colors.textTertiary} style={{ marginLeft: spacing.xs }} />
             </TouchableOpacity>
             {madeIn && madeIn !== 'Undetected' && (
               <Text style={styles.heroMadeIn}>Made in {madeIn}</Text>
@@ -341,17 +345,17 @@ const ScanResultScreen = () => {
             {!isVisualScan && (
             <View style={styles.statsRow}>
               <View style={styles.statCard}>
-                <Text style={styles.statIcon}>💧</Text>
+                <Ionicons name="water-outline" size={20} color={colors.primary} style={{ marginBottom: spacing.xs }} />
                 <Text style={styles.statValue}>{waterVal}</Text>
                 <Text style={styles.statLabel}>Water</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statIcon}>☁️</Text>
+                <Ionicons name="cloud-outline" size={20} color={colors.textSecondary} style={{ marginBottom: spacing.xs }} />
                 <Text style={styles.statValue}>{carbonVal}</Text>
                 <Text style={styles.statLabel}>CO₂</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statIcon}>⚖️</Text>
+                <Ionicons name="scale-outline" size={20} color={colors.textSecondary} style={{ marginBottom: spacing.xs }} />
                 <Text style={styles.statValue}>{weightVal}</Text>
                 <Text style={styles.statLabel}>Weight</Text>
               </View>
@@ -416,7 +420,7 @@ const ScanResultScreen = () => {
             >
               <Card style={styles.alternativesCard}>
                 <View style={styles.alternativesIconBox}>
-                  <Text style={styles.alternativesIconText}>♻</Text>
+                  <Ionicons name="leaf-outline" size={22} color={colors.primary} />
                 </View>
                 <View style={styles.alternativesInfo}>
                   <Text style={styles.alternativesTitle}>Sustainable Alternatives</Text>
@@ -424,7 +428,7 @@ const ScanResultScreen = () => {
                     Discover eco-friendly options for this {displayItemType.toLowerCase()}
                   </Text>
                 </View>
-                <Text style={styles.alternativesArrow}>→</Text>
+                <Ionicons name="chevron-forward" size={22} color={colors.primary} />
               </Card>
             </TouchableOpacity>
 
@@ -495,6 +499,7 @@ const ScanResultScreen = () => {
                   style={styles.actionBtn}
                   onPress={() => setShowShareModal(true)}
                 >
+                  <Ionicons name="share-outline" size={16} color={colors.textPrimary} />
                   <Text style={styles.actionBtnText}>Share</Text>
                 </TouchableOpacity>
               )}
@@ -502,12 +507,14 @@ const ScanResultScreen = () => {
                 style={styles.actionBtn}
                 onPress={() => navigation.navigate('EditScan', { scanData: updatedScanData, scanId })}
               >
+                <Ionicons name="create-outline" size={16} color={colors.textPrimary} />
                 <Text style={styles.actionBtnText}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionBtn}
                 onPress={() => navigation.navigate('Breakdown', { scanData: updatedScanData, scanId })}
               >
+                <Ionicons name="analytics-outline" size={16} color={colors.textPrimary} />
                 <Text style={styles.actionBtnText}>Details</Text>
               </TouchableOpacity>
               {scanId && (
@@ -515,6 +522,7 @@ const ScanResultScreen = () => {
                   style={[styles.actionBtn, styles.actionBtnDanger]}
                   onPress={handleDelete}
                 >
+                  <Ionicons name="trash-outline" size={16} color={colors.error} />
                   <Text style={[styles.actionBtnText, styles.actionBtnDangerText]}>Delete</Text>
                 </TouchableOpacity>
               )}
@@ -661,6 +669,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   backText: {
     ...typography.body,
     color: colors.primary,
@@ -762,11 +771,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '600',
   },
-  heroDropdown: {
-    fontSize: 10,
-    color: colors.textTertiary,
-    marginLeft: spacing.xs,
-  },
   heroMadeIn: {
     ...typography.caption,
     color: colors.textTertiary,
@@ -817,10 +821,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     paddingVertical: spacing.md,
     alignItems: 'center',
-  },
-  statIcon: {
-    fontSize: 20,
-    marginBottom: spacing.xs,
   },
   statValue: {
     ...typography.body,
@@ -913,9 +913,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: spacing.md,
   },
-  alternativesIconText: {
-    fontSize: 20,
-  },
   alternativesInfo: {
     flex: 1,
   },
@@ -928,12 +925,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
-  alternativesArrow: {
-    ...typography.h2,
-    color: colors.primary,
-    marginLeft: spacing.sm,
-  },
-
   // Achievement
   achievementCard: {
     marginBottom: spacing.md,
@@ -968,13 +959,16 @@ const styles = StyleSheet.create({
   actionBtn: {
     flex: 1,
     minWidth: 70,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    justifyContent: 'center',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: 'center',
   },
   actionBtnText: {
     ...typography.bodySmall,

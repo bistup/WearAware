@@ -33,11 +33,14 @@ router.get('/profile/:firebaseUid', async (req, res) => {
 
     if (profile.rows.length === 0) {
       // auto-create profile
+      const safeFallbackName = profile.rows[0]?.email?.split('@')[0] || firebaseUid.substring(0, 8);
+      const userRow = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+      const fallbackName = userRow.rows[0]?.email?.split('@')[0] || safeFallbackName;
       await pool.query(
         `INSERT INTO user_profiles (user_id, display_name)
          VALUES ($1, $2)
          ON CONFLICT (user_id) DO NOTHING`,
-        [userId, firebaseUid.substring(0, 8)]
+        [userId, fallbackName]
       );
       profile = await pool.query(
         `SELECT up.*, u.email, u.firebase_uid
@@ -46,6 +49,20 @@ router.get('/profile/:firebaseUid', async (req, res) => {
          WHERE up.user_id = $1`,
         [userId]
       );
+    }
+
+    // Normalize legacy UID-fragment display names to a friendlier default.
+    const currentDisplayName = profile.rows[0]?.display_name || '';
+    const looksLikeUidFragment = /^[A-Za-z0-9]{8}$/.test(currentDisplayName) && currentDisplayName === firebaseUid.substring(0, 8);
+    if (!currentDisplayName || looksLikeUidFragment) {
+      const emailPrefix = profile.rows[0]?.email?.split('@')[0] || 'User';
+      await pool.query(
+        `UPDATE user_profiles
+         SET display_name = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = $2`,
+        [emailPrefix, userId]
+      );
+      profile.rows[0].display_name = emailPrefix;
     }
 
     // get follower/following counts
@@ -157,7 +174,7 @@ router.get('/profile/:firebaseUid', async (req, res) => {
 
 // PUT /api/social/profile - update own profile
 router.put('/profile', async (req, res) => {
-  const { firebaseUid, displayName, bio, privacyLevel } = req.body;
+  const { firebaseUid, displayName, bio, privacyLevel, avatarUrl } = req.body;
 
   try {
     const userId = await getUserId(firebaseUid);
@@ -172,9 +189,14 @@ router.put('/profile', async (req, res) => {
          display_name = COALESCE($2, user_profiles.display_name),
          bio = COALESCE($3, user_profiles.bio),
          privacy_level = COALESCE($4, user_profiles.privacy_level),
+         avatar_url = COALESCE($5, user_profiles.avatar_url),
          updated_at = CURRENT_TIMESTAMP`,
-      [userId, displayName, bio, privacyLevel]
+      [userId, displayName, bio, privacyLevel, avatarUrl]
     );
+
+    await cache.invalidateCached('leaderboard:weekly');
+    await cache.invalidateCached('leaderboard:monthly');
+    await cache.invalidateCached('leaderboard:alltime');
 
     res.json({ success: true, message: 'Profile updated' });
   } catch (error) {
@@ -438,7 +460,7 @@ router.get('/feed', async (req, res) => {
       }
     }
 
-    // fetch posts from followed users + all own posts
+     // fetch posts from followed users only (own posts appear in My Posts tab)
     const result = await pool.query(
       `SELECT sp.*, s.brand, s.item_type, s.environmental_grade, s.environmental_score,
               s.water_usage_liters, s.carbon_footprint_kg, s.fibers,
@@ -452,8 +474,7 @@ router.get('/feed', async (req, res) => {
        JOIN users u ON u.id = sp.user_id
        LEFT JOIN user_profiles up ON up.user_id = u.id
        LEFT JOIN scans s ON s.id = sp.scan_id
-       WHERE sp.user_id = $1
-          OR (sp.visibility = 'public' AND sp.user_id IN (SELECT following_id FROM follows WHERE follower_id = $1))
+       WHERE (sp.visibility = 'public' AND sp.user_id IN (SELECT following_id FROM follows WHERE follower_id = $1))
           OR (sp.visibility = 'followers' AND sp.user_id IN (SELECT following_id FROM follows WHERE follower_id = $1))
        ORDER BY sp.created_at DESC
        LIMIT $2 OFFSET $3`,
@@ -469,8 +490,7 @@ router.get('/feed', async (req, res) => {
 
     const totalResult = await pool.query(
       `SELECT COUNT(*) FROM scan_posts sp
-       WHERE sp.user_id = $1
-          OR (sp.visibility = 'public' AND sp.user_id IN (SELECT following_id FROM follows WHERE follower_id = $1))
+       WHERE (sp.visibility = 'public' AND sp.user_id IN (SELECT following_id FROM follows WHERE follower_id = $1))
           OR (sp.visibility = 'followers' AND sp.user_id IN (SELECT following_id FROM follows WHERE follower_id = $1))`,
       [userId]
     );

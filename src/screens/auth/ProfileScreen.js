@@ -4,18 +4,41 @@
 // profile screen - shows account info, social profile link, logout
 // works as both tab destination and stack screen
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Image, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useThemeMode } from '../../context/ThemeContext';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
+import { fetchUserProfile } from '../../services/api';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { user, logout, isGuest } = useAuth();
+  const { isDarkMode, toggleThemeMode } = useThemeMode();
+  const [profile, setProfile] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+
+      const loadProfile = async () => {
+        if (!user?.uid || isGuest) return;
+        const result = await fetchUserProfile(user.uid);
+        if (mounted && result.success && result.profile) {
+          setProfile(result.profile);
+        }
+      };
+
+      loadProfile();
+      return () => {
+        mounted = false;
+      };
+    }, [user?.uid, isGuest])
+  );
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
@@ -30,7 +53,8 @@ const ProfileScreen = () => {
     ]);
   };
 
-  const displayName = user?.displayName || user?.email?.split('@')[0] || 'User';
+  const displayName = profile?.display_name || user?.displayName || user?.email?.split('@')[0] || 'User';
+  const avatarUrl = profile?.avatar_url || null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -40,9 +64,13 @@ const ProfileScreen = () => {
         {/* Avatar + Name */}
         <View style={styles.avatarSection}>
           <View style={styles.avatar} accessibilityRole="image" accessibilityLabel={`${displayName} avatar`}>
-            <Text style={styles.avatarText}>
-              {displayName.charAt(0).toUpperCase()}
-            </Text>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>
+                {displayName.charAt(0).toUpperCase()}
+              </Text>
+            )}
           </View>
           <Text style={styles.displayName}>{displayName}</Text>
         </View>
@@ -54,6 +82,21 @@ const ProfileScreen = () => {
           ) : (
             <Text style={styles.value}>{user?.email}</Text>
           )}
+        </Card>
+
+        <Card style={styles.card}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingTextWrap}>
+              <Text style={styles.label}>Dark Mode</Text>
+              <Text style={styles.settingHint}>Switch app appearance (applies across all screens)</Text>
+            </View>
+            <Switch
+              value={isDarkMode}
+              onValueChange={toggleThemeMode}
+              trackColor={{ false: colors.border, true: colors.primaryLight }}
+              thumbColor={isDarkMode ? colors.primary : colors.surface}
+            />
+          </View>
         </Card>
 
         {isGuest && (
@@ -76,7 +119,7 @@ const ProfileScreen = () => {
             />
             <Button
               title="Edit Profile"
-              onPress={() => navigation.navigate('EditProfile', { profile: { display_name: displayName, email: user?.email } })}
+              onPress={() => navigation.navigate('EditProfile', { profile: profile || { display_name: displayName, email: user?.email } })}
               variant="secondary"
               style={styles.actionButton}
               accessibilityHint="Edit your display name and bio"
@@ -123,6 +166,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 36,
+  },
   avatarText: {
     fontSize: 28,
     fontWeight: '700',
@@ -162,6 +210,20 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  settingTextWrap: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  settingHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   actionButton: {
     marginBottom: spacing.sm,

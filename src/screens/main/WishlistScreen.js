@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/Card';
 import { colors, typography, spacing, borderRadius, getGradeColor } from '../../theme/theme';
 import { fetchWishlist, removeFromWishlist } from '../../services/api';
@@ -112,7 +113,10 @@ const WishlistScreen = () => {
           style={styles.removeButton}
           onPress={() => handleRemove(item.id, item.product_name)}
         >
-          <Text style={styles.removeText}>Remove</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="trash-outline" size={14} color={colors.error} />
+            <Text style={styles.removeText}>Remove</Text>
+          </View>
         </TouchableOpacity>
         {item.external_url && (
           <TouchableOpacity
@@ -122,7 +126,10 @@ const WishlistScreen = () => {
               Linking.openURL(item.external_url);
             }}
           >
-            <Text style={styles.visitText}>Visit Store →</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={styles.visitText}>Visit Store</Text>
+              <Ionicons name="open-outline" size={14} color={colors.background} />
+            </View>
           </TouchableOpacity>
         )}
       </View>
@@ -171,7 +178,10 @@ const WishlistScreen = () => {
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <Text style={styles.backText}>← Back</Text>
+              <View style={styles.backRow}>
+                <Ionicons name="chevron-back" size={20} color={colors.primary} />
+                <Text style={styles.backText}>Back</Text>
+              </View>
             </TouchableOpacity>
             <Text style={styles.title}>My Wishlist</Text>
             <Text style={styles.subtitle}>
@@ -204,6 +214,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   backText: {
     ...typography.body,
     color: colors.primary,

@@ -4,13 +4,16 @@
 // saves changes via socialApi.updateUserProfile
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, Alert, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Alert, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 import { updateUserProfile } from '../../services/api';
+import { uploadScanImages } from '../../services/imageUpload';
 
 const PRIVACY_OPTIONS = [
   { key: 'public', label: 'Public', description: 'Anyone can see your profile and posts' },
@@ -26,7 +29,54 @@ const EditProfileScreen = () => {
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [privacyLevel, setPrivacyLevel] = useState(profile?.privacy_level || 'public');
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || null);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handlePickAvatar = async () => {
+    if (uploadingAvatar) return;
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Please allow photo library access to upload an avatar.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      setUploadingAvatar(true);
+      const uploadResult = await uploadScanImages(result.assets[0].uri, `avatar-${Date.now()}`);
+      setUploadingAvatar(false);
+
+      if (uploadResult.success && uploadResult.imageUrl) {
+        setAvatarUrl(uploadResult.imageUrl);
+
+        const saveAvatarResult = await updateUserProfile({
+          displayName: displayName.trim() || profile?.display_name || null,
+          bio: bio.trim() || profile?.bio || null,
+          privacyLevel,
+          avatarUrl: uploadResult.imageUrl,
+        });
+
+        if (!saveAvatarResult.success) {
+          Alert.alert('Upload saved locally', 'Image uploaded but profile update failed. Tap Save Changes to retry.');
+        }
+      } else {
+        Alert.alert('Upload failed', uploadResult.error || 'Could not upload avatar image.');
+      }
+    } catch (error) {
+      setUploadingAvatar(false);
+      Alert.alert('Error', error.message || 'Failed to select image.');
+    }
+  };
 
   const handleSave = async () => {
     if (!displayName.trim()) {
@@ -39,6 +89,7 @@ const EditProfileScreen = () => {
       displayName: displayName.trim(),
       bio: bio.trim(),
       privacyLevel,
+      avatarUrl,
     });
 
     setSaving(false);
@@ -65,7 +116,10 @@ const EditProfileScreen = () => {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Text style={styles.backText}>← Back</Text>
+            <View style={styles.backRow}>
+              <Ionicons name="chevron-back" size={20} color={colors.primary} />
+              <Text style={styles.backText}>Back</Text>
+            </View>
           </TouchableOpacity>
 
           <Text style={styles.title}>Edit Profile</Text>
@@ -73,10 +127,21 @@ const EditProfileScreen = () => {
           {/* Avatar Preview */}
           <View style={styles.avatarSection}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {(displayName || '?')[0].toUpperCase()}
-              </Text>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {(displayName || '?')[0].toUpperCase()}
+                </Text>
+              )}
             </View>
+            <TouchableOpacity style={styles.avatarButton} onPress={handlePickAvatar} disabled={uploadingAvatar}>
+              {uploadingAvatar ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.avatarButtonText}>Upload Profile Picture</Text>
+              )}
+            </TouchableOpacity>
           </View>
 
           {/* Display Name */}
@@ -165,6 +230,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.xl,
   },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   backButton: {
     marginBottom: spacing.lg,
     minHeight: 44,
@@ -193,10 +263,25 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary,
   },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
+  },
   avatarText: {
     fontSize: 32,
     fontWeight: '800',
     color: colors.primary,
+  },
+  avatarButton: {
+    marginTop: spacing.sm,
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  avatarButtonText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: '700',
   },
   fieldCard: {
     marginBottom: spacing.md,

@@ -11,6 +11,21 @@ import * as ImageManipulator from 'expo-image-manipulator';
 // backend URL (same LXC as the API)
 const UPLOAD_URL = 'http://YOUR_SERVER_IP:3000/api/uploads/image';
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function getAuthHeader(forceRefresh = false) {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return {};
+
+  try {
+    const idToken = await user.getIdToken(forceRefresh);
+    return idToken ? { Authorization: `Bearer ${idToken}` } : {};
+  } catch (error) {
+    console.warn('Failed to get auth token for image upload:', error?.message || error);
+    return {};
+  }
+}
+
 /**
  * Upload scan image to backend server
  * Server handles: compression, thumbnail generation, EXIF stripping, UUID naming
@@ -36,30 +51,70 @@ export async function uploadScanImages(localUri, scanId) {
       { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
     );
 
-    // build multipart form data 
-    const formData = new FormData();
-    formData.append('image', {
-      uri: manipulatedImage.uri,
-      type: 'image/jpeg',
-      name: `${scanId || Date.now()}.jpg`,
-    });
-    formData.append('firebaseUid', user.uid);
+    const fileName = `${scanId || Date.now()}.jpg`;
+
+    const buildFormData = () => {
+      const formData = new FormData();
+      formData.append('image', {
+        uri: manipulatedImage.uri,
+        type: 'image/jpeg',
+        name: fileName,
+      });
+      formData.append('firebaseUid', user.uid);
+      return formData;
+    };
 
     console.log('Uploading image to backend server...');
 
-    const response = await fetch(UPLOAD_URL, {
-      method: 'POST',
-      body: formData,
-      // don't set Content-Type header — fetch sets it with the boundary for multipart
-    });
+    let response;
+    let lastNetworkError = null;
 
-    const data = await response.json();
+    // Retry transient Android network errors with a fresh multipart body each attempt.
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const authHeader = await getAuthHeader(attempt > 1);
+        response = await fetch(UPLOAD_URL, {
+          method: 'POST',
+          body: buildFormData(),
+          headers: {
+            ...authHeader,
+            Accept: 'application/json',
+            Connection: 'close',
+          },
+          // don't set Content-Type header — fetch sets it with the boundary for multipart
+        });
+
+        if (response.status !== 401) {
+          break;
+        }
+
+        // 401 can happen with stale tokens; refresh and retry next iteration.
+      } catch (networkError) {
+        lastNetworkError = networkError;
+      }
+
+      if (attempt < 3) {
+        await sleep(250 * attempt);
+      }
+    }
+
+    if (!response) {
+      throw lastNetworkError || new Error('Network request failed');
+    }
+
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = { error: raw?.slice(0, 200) || 'Upload failed' };
+    }
 
     if (!response.ok || !data.success) {
       console.error('Upload failed:', data.error);
       return {
         success: false,
-        error: data.error || 'Upload failed',
+        error: data.error || `Upload failed (${response.status})`,
       };
     }
 
@@ -117,6 +172,8 @@ export async function deleteImage(imageUrl) {
     const user = auth.currentUser;
     if (!user) return false;
 
+    const authHeader = await getAuthHeader();
+
     // extract /userHash/filename from URL
     const urlParts = imageUrl.split('/uploads/scans/');
     if (urlParts.length < 2) return false;
@@ -127,7 +184,7 @@ export async function deleteImage(imageUrl) {
       `http://YOUR_SERVER_IP:3000/api/uploads/image/${pathPart}`,
       {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({ firebaseUid: user.uid }),
       }
     );
@@ -149,9 +206,11 @@ export async function deleteAllMyImages() {
     const user = auth.currentUser;
     if (!user) return { success: false };
 
+    const authHeader = await getAuthHeader();
+
     const response = await fetch('http://YOUR_SERVER_IP:3000/api/uploads/my-data', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeader },
       body: JSON.stringify({ firebaseUid: user.uid }),
     });
 

@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Card from '../../components/Card';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, getGradeColor } from '../../theme/theme';
 import { fetchVisualRecommendations, searchWebAlternatives, searchSecondHand } from '../../services/api';
 
@@ -122,7 +123,10 @@ const AlternativesScreen = () => {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text style={styles.backText}>← Back</Text>
+          <View style={styles.backRow}>
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
 
         <Text style={styles.title}>
@@ -209,7 +213,10 @@ const AlternativesScreen = () => {
           style={styles.browseButton}
           onPress={() => navigation.navigate('Wishlist')}
         >
-          <Text style={styles.browseText}>Browse Wishlist →</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={styles.browseText}>Browse Wishlist</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.background} />
+          </View>
         </TouchableOpacity>
       </Card>
     );
@@ -359,6 +366,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   backText: {
     ...typography.body,
     color: colors.primary,

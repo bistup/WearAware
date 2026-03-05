@@ -9,6 +9,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import CareIcon from '../../components/CareIcon';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 
 const CareInstructionsScreen = () => {
@@ -34,7 +35,10 @@ const CareInstructionsScreen = () => {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text style={styles.backText}>← Back</Text>
+          <View style={styles.backRow}>
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
 
         <Text style={styles.title}>Care Instructions</Text>
@@ -163,7 +167,7 @@ const CareInstructionsScreen = () => {
 
         <Button
           title="Done"
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigation.navigate('Tabs', { screen: 'Home' })}
           variant="secondary"
           style={styles.actionButton}
         />
@@ -187,6 +191,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   backText: {
     ...typography.body,
     color: colors.primary,

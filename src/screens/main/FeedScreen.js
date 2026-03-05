@@ -13,10 +13,12 @@ import {
   RefreshControl,
   TouchableOpacity,
   TextInput,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import FeedPostCard from '../../components/FeedPostCard';
 import Card from '../../components/Card';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
@@ -140,9 +142,13 @@ const FeedScreen = () => {
       }}
     >
       <View style={styles.searchAvatar}>
-        <Text style={styles.searchAvatarText}>
-          {(item.display_name || item.email || 'U').charAt(0).toUpperCase()}
-        </Text>
+        {item.avatar_url ? (
+          <Image source={{ uri: item.avatar_url }} style={styles.searchAvatarImage} />
+        ) : (
+          <Text style={styles.searchAvatarText}>
+            {(item.display_name || item.email || 'U').charAt(0).toUpperCase()}
+          </Text>
+        )}
       </View>
       <View style={styles.searchInfo}>
         <Text style={styles.searchName}>
@@ -178,15 +184,18 @@ const FeedScreen = () => {
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search users..."
-          placeholderTextColor={colors.textTertiary}
-          value={searchQuery}
-          onChangeText={handleSearch}
-          accessibilityLabel="Search users"
-          accessibilityHint="Type at least 2 characters to search"
-        />
+        <View style={styles.searchRow}>
+          <Ionicons name="search-outline" size={18} color={colors.textTertiary} style={{ marginRight: spacing.xs }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search users..."
+            placeholderTextColor={colors.textTertiary}
+            value={searchQuery}
+            onChangeText={handleSearch}
+            accessibilityLabel="Search users"
+            accessibilityHint="Type at least 2 characters to search"
+          />
+        </View>
       </View>
 
       {/* Search Results Overlay */}
@@ -296,15 +305,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
   },
-  searchInput: {
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surfaceSecondary,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchInput: {
+    flex: 1,
     paddingVertical: spacing.sm,
     ...typography.body,
     color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
     minHeight: 44,
   },
   searchOverlay: {
@@ -338,6 +352,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.sm,
+  },
+  searchAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
   },
   searchAvatarText: {
     color: colors.primary,

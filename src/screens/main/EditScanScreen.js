@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../../theme/theme';
 import { updateScan } from '../../services/api';
 
@@ -79,7 +80,10 @@ const EditScanScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-          <Text style={styles.backText}>← Back</Text>
+          <View style={styles.backRow}>
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
 
         <Text style={styles.title}>Edit Scan</Text>
@@ -116,7 +120,7 @@ const EditScanScreen = () => {
               onPress={() => handleRemoveFiber(index)}
               style={styles.removeButton}
             >
-              <Text style={styles.removeText}>X</Text>
+              <Ionicons name="close-circle-outline" size={24} color={colors.error} />
             </TouchableOpacity>
           </View>
         ))}
@@ -149,6 +153,7 @@ const getStyles = (colors, typography, spacing) => StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   backText: {
     ...typography.body,
     color: colors.primary,

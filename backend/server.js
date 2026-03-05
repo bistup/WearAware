@@ -18,6 +18,12 @@ const alternativesRouter = require('./routes/alternatives');
 const gamificationRouter = require('./routes/gamification');
 const uploadsRouter = require('./routes/uploads');
 const path = require('path');
+const {
+  optionalFirebaseAuth,
+  requireFirebaseAuth,
+  rejectUidWithoutAuth,
+  bindAuthUid,
+} = require('./middleware/firebaseAuth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,14 +47,14 @@ app.use((req, res, next) => {
 });
 
 // api routes
-app.use('/api/scans', scansRouter);
+app.use('/api/scans', requireFirebaseAuth, bindAuthUid, scansRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/item-types', itemTypesRouter);
 app.use('/api/summaries', summariesRouter);
-app.use('/api/social', socialRouter);
-app.use('/api/alternatives', alternativesRouter);
-app.use('/api/gamification', gamificationRouter);
-app.use('/api/uploads', uploadsRouter);
+app.use('/api/social', optionalFirebaseAuth, rejectUidWithoutAuth, bindAuthUid, socialRouter);
+app.use('/api/alternatives', requireFirebaseAuth, bindAuthUid, alternativesRouter);
+app.use('/api/gamification', requireFirebaseAuth, bindAuthUid, gamificationRouter);
+app.use('/api/uploads', requireFirebaseAuth, bindAuthUid, uploadsRouter);
 
 // health check endpoint to verify database connection
 app.get('/api/health', async (req, res) => {

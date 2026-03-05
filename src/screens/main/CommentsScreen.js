@@ -14,10 +14,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 import { fetchComments, addComment } from '../../services/api';
 
@@ -33,22 +35,32 @@ const CommentsScreen = () => {
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [screenError, setScreenError] = useState('');
 
   useEffect(() => {
+    if (!postId) {
+      setLoading(false);
+      setScreenError('Unable to load comments for this post.');
+      return;
+    }
     loadComments();
   }, [postId]);
 
   const loadComments = async () => {
+    if (!postId) return;
     setLoading(true);
     const result = await fetchComments(postId);
     if (result.success) {
       setComments(result.comments || []);
+      setScreenError('');
+    } else {
+      setScreenError(result.error || 'Failed to load comments.');
     }
     setLoading(false);
   };
 
   const handleSubmit = async () => {
-    if (!newComment.trim() || submitting) return;
+    if (!postId || !newComment.trim() || submitting) return;
 
     setSubmitting(true);
     const result = await addComment(postId, newComment.trim(), replyTo?.id || null);
@@ -79,12 +91,17 @@ const CommentsScreen = () => {
 
   const renderComment = ({ item, isReply = false }) => {
     const authorName = item.author_name || item.author_email?.split('@')[0] || 'User';
+    const authorAvatar = item.author_avatar || null;
     return (
       <View style={[styles.commentItem, isReply && styles.replyItem]}>
         <View style={[styles.avatar, isReply && styles.replyAvatar]}>
-          <Text style={styles.avatarText}>
-            {authorName.charAt(0).toUpperCase()}
-          </Text>
+          {authorAvatar ? (
+            <Image source={{ uri: authorAvatar }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>
+              {authorName.charAt(0).toUpperCase()}
+            </Text>
+          )}
         </View>
         <View style={styles.commentContent}>
           <View style={styles.commentHeader}>
@@ -115,45 +132,54 @@ const CommentsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Comments</Text>
-      </View>
-
-      {/* Comments List */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={comments}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => renderComment({ item })}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
-            </View>
-          }
-        />
-      )}
-
-      {/* Input */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={90}
+        style={styles.flex}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 24}
       >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backButton}>
+            <View style={styles.backRow}>
+              <Ionicons name="chevron-back" size={20} color={colors.primary} />
+              <Text style={styles.backText}>Back</Text>
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.title}>Comments</Text>
+        </View>
+
+        {/* Comments List */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+          ) : screenError ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>{screenError}</Text>
+            </View>
+        ) : (
+          <FlatList
+            data={comments}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={({ item }) => renderComment({ item })}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No comments yet. Be the first!</Text>
+              </View>
+            }
+          />
+        )}
+
+        {/* Input */}
         {replyTo && (
           <View style={styles.replyBanner}>
             <Text style={styles.replyBannerText}>
               Replying to {replyTo.author_name || 'User'}
             </Text>
             <TouchableOpacity onPress={() => setReplyTo(null)}>
-              <Text style={styles.cancelReply}>X</Text>
+              <Ionicons name="close" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
         )}
@@ -167,16 +193,20 @@ const CommentsScreen = () => {
             onChangeText={setNewComment}
             multiline
             maxLength={500}
+            textAlignVertical="top"
           />
           <TouchableOpacity
             style={[styles.sendButton, (!newComment.trim() || submitting) && styles.sendButtonDisabled]}
             onPress={handleSubmit}
-            disabled={!newComment.trim() || submitting}
+            disabled={!postId || !newComment.trim() || submitting}
           >
             {submitting ? (
               <ActivityIndicator size="small" color={colors.surface} />
             ) : (
-              <Text style={styles.sendText}>Send</Text>
+              <>
+                <Ionicons name="send" size={14} color={colors.background} />
+                <Text style={styles.sendText}>Send</Text>
+              </>
             )}
           </TouchableOpacity>
         </View>
@@ -190,10 +220,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  flex: {
+    flex: 1,
+  },
   header: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   backButton: {
     minHeight: 44,
@@ -203,7 +241,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.primary,
     fontWeight: '600',
-    marginBottom: spacing.sm,
   },
   title: {
     ...typography.h2,
@@ -236,6 +273,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.sm,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
   },
   replyAvatar: {
     width: 28,
@@ -328,12 +370,15 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   sendButton: {
+    flexDirection: 'row',
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     minWidth: 60,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   sendButtonDisabled: {
     opacity: 0.4,

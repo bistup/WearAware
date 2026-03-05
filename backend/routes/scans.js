@@ -123,6 +123,81 @@ function calculateEnvironmentalImpact(fibers, weightGrams) {
   };
 }
 
+async function updateGamificationOnScan(userId, impact) {
+  if (!userId) return;
+
+  try {
+    // Ensure achievement progress rows exist so scan events can increment progress.
+    await pool.query(
+      `INSERT INTO user_achievements (user_id, achievement_id, progress)
+       SELECT $1, a.id, 0
+       FROM achievements a
+       ON CONFLICT (user_id, achievement_id) DO NOTHING`,
+      [userId]
+    );
+
+    await pool.query(
+      `UPDATE user_achievements ua
+       SET progress = ua.progress + 1,
+           updated_at = CURRENT_TIMESTAMP
+       FROM achievements a
+       WHERE ua.achievement_id = a.id
+         AND ua.user_id = $1
+         AND ua.unlocked = FALSE
+         AND a.key = ANY($2::text[])`,
+      [userId, ['first_scan', 'scan_5', 'scan_25', 'scan_100']]
+    );
+
+    if (impact?.grade === 'A') {
+      await pool.query(
+        `UPDATE user_achievements ua
+         SET progress = ua.progress + 1,
+             updated_at = CURRENT_TIMESTAMP
+         FROM achievements a
+         WHERE ua.achievement_id = a.id
+           AND ua.user_id = $1
+           AND ua.unlocked = FALSE
+           AND a.key = ANY($2::text[])`,
+        [userId, ['grade_a_first', 'grade_a_10']]
+      );
+    }
+
+    await pool.query(
+      `UPDATE user_achievements ua
+       SET unlocked = TRUE,
+           unlocked_at = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP
+       FROM achievements a
+       WHERE ua.achievement_id = a.id
+         AND ua.user_id = $1
+         AND ua.unlocked = FALSE
+         AND ua.progress >= a.threshold`,
+      [userId]
+    );
+
+    await pool.query(
+      `UPDATE user_challenges uc
+       SET progress = uc.progress + 1,
+           completed = (uc.progress + 1) >= c.goal_value,
+           completed_at = CASE
+             WHEN uc.completed = FALSE AND (uc.progress + 1) >= c.goal_value THEN CURRENT_TIMESTAMP
+             ELSE uc.completed_at
+           END,
+           updated_at = CURRENT_TIMESTAMP
+       FROM challenges c
+       WHERE uc.challenge_id = c.id
+         AND uc.user_id = $1
+         AND uc.completed = FALSE
+         AND c.goal_type = 'scan_count'
+         AND c.starts_at <= NOW()
+         AND c.ends_at > NOW()`,
+      [userId]
+    );
+  } catch (error) {
+    console.error('Gamification update on scan failed:', error?.message || error);
+  }
+}
+
 // create new scan
 router.post('/', async (req, res) => {
   const {
@@ -232,6 +307,14 @@ router.post('/', async (req, res) => {
     
     // invalidate user's history cache since they added a new scan
     await cache.invalidateCached(cache.keys.history(firebaseUid));
+
+    // invalidate leaderboard caches so new scan is reflected
+    await cache.invalidateCached('leaderboard:weekly');
+    await cache.invalidateCached('leaderboard:monthly');
+    await cache.invalidateCached('leaderboard:alltime');
+
+    // Drive challenge/achievement progress directly from scan completion.
+    await updateGamificationOnScan(userId, impact);
     
     // if garment image was provided, extract CLIP embedding in background for visual matching
     if (imageUrl) {
@@ -263,7 +346,15 @@ router.post('/', async (req, res) => {
 
 // get scan history for logged-in users only
 router.get('/history/:firebaseUid', async (req, res) => {
-  const { firebaseUid } = req.params;
+  const { firebaseUid: requestedUid } = req.params;
+  const firebaseUid = req.authUid;
+
+  if (!firebaseUid) {
+    return res.status(403).json({
+      error: 'Access denied',
+      success: false,
+    });
+  }
 
   try {
     // check cache first

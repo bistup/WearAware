@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Card from './Card';
 import GradeIndicator from './GradeIndicator';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
@@ -29,6 +30,8 @@ const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid 
 
   const timeAgo = getTimeAgo(post.createdAt);
   const authorName = post.author?.displayName || post.author?.email?.split('@')[0] || 'User';
+  const authorAvatar = post.author?.avatarUrl || null;
+  const achievementShare = parseAchievementShare(post);
 
   return (
     <Card style={styles.card}>
@@ -38,9 +41,13 @@ const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid 
         onPress={() => onProfilePress?.(post.author?.firebaseUid)}
       >
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {authorName.charAt(0).toUpperCase()}
-          </Text>
+          {authorAvatar ? (
+            <Image source={{ uri: authorAvatar }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>
+              {authorName.charAt(0).toUpperCase()}
+            </Text>
+          )}
         </View>
         <View style={styles.authorInfo}>
           <Text style={styles.authorName}>{authorName}</Text>
@@ -72,13 +79,13 @@ const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid 
           {/* Metrics Row */}
           <View style={styles.metricsRow}>
             <View style={styles.metric}>
-              <Text style={styles.metricIcon}>Water:</Text>
+              <Ionicons name="water-outline" size={12} color={colors.textTertiary} />
               <Text style={styles.metricValue}>
                 {post.scan.waterUsage?.toFixed(1) || '0'}L
               </Text>
             </View>
             <View style={styles.metric}>
-              <Text style={styles.metricIcon}>CO2:</Text>
+              <Ionicons name="cloud-outline" size={12} color={colors.textTertiary} />
               <Text style={styles.metricValue}>
                 {post.scan.carbonFootprint?.toFixed(2) || '0'}kg CO₂
               </Text>
@@ -88,9 +95,22 @@ const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid 
       )}
 
       {/* Caption */}
-      {post.caption && (
+      {achievementShare ? (
+        <View style={styles.achievementShareCard}>
+          <View style={styles.achievementShareHeader}>
+            <View style={styles.achievementShareIconBox}>
+              <Ionicons name={getAchievementCategoryIcon(achievementShare.category)} size={18} color={colors.primary} />
+            </View>
+            <Text style={styles.achievementShareLabel}>Achievement Unlocked</Text>
+          </View>
+          <Text style={styles.achievementShareTitle}>{achievementShare.title}</Text>
+          {!!achievementShare.description && (
+            <Text style={styles.achievementShareDescription}>{achievementShare.description}</Text>
+          )}
+        </View>
+      ) : post.caption ? (
         <Text style={styles.caption}>{post.caption}</Text>
-      )}
+      ) : null}
 
       {/* Actions */}
       <View style={styles.actionsRow}>
@@ -98,7 +118,7 @@ const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid 
           accessibilityRole="button"
           accessibilityLabel={liked ? `Unlike, ${likeCount} likes` : `Like, ${likeCount} likes`}
         >
-          <Text style={styles.actionIcon}>{liked ? 'Liked' : 'Like'}</Text>
+          <Ionicons name={liked ? "heart" : "heart-outline"} size={20} color={liked ? colors.primary : colors.textSecondary} />
           <Text style={[styles.actionText, liked && styles.likedText]}>
             {likeCount}
           </Text>
@@ -110,7 +130,7 @@ const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid 
           accessibilityRole="button"
           accessibilityLabel={`Comment, ${post.commentCount || 0} comments`}
         >
-          <Text style={styles.actionIcon}>Comment</Text>
+          <Ionicons name="chatbubble-outline" size={20} color={colors.textSecondary} />
           <Text style={styles.actionText}>{post.commentCount || 0}</Text>
         </TouchableOpacity>
       </View>
@@ -131,6 +151,48 @@ function getTimeAgo(dateStr) {
   return date.toLocaleDateString();
 }
 
+function stripLeadingEmoji(text = '') {
+  return text.replace(/^\p{Extended_Pictographic}[\uFE0F\u200D\s]*/u, '').trim();
+}
+
+function parseAchievementShare(post) {
+  if (!post || post.scan) return null;
+  const caption = post.caption || '';
+
+  // New structured format: ACHIEVEMENT_SHARE|title|description|category
+  if (caption.startsWith('ACHIEVEMENT_SHARE|')) {
+    const [, rawTitle = '', rawDescription = '', rawCategory = 'general'] = caption.split('|');
+    return {
+      title: rawTitle.trim(),
+      description: rawDescription.trim(),
+      category: rawCategory.trim() || 'general',
+    };
+  }
+
+  // Backward compatibility for old captions: Achievement Unlocked: <emoji> Title - Description
+  if (caption.startsWith('Achievement Unlocked:')) {
+    const payload = caption.replace('Achievement Unlocked:', '').trim();
+    const [rawTitle = '', ...descParts] = payload.split(' - ');
+    return {
+      title: stripLeadingEmoji(rawTitle),
+      description: descParts.join(' - ').trim(),
+      category: 'general',
+    };
+  }
+
+  return null;
+}
+
+function getAchievementCategoryIcon(category) {
+  switch (category) {
+    case 'scanning': return 'scan-outline';
+    case 'social': return 'people-outline';
+    case 'sustainability': return 'leaf-outline';
+    case 'streak': return 'flame-outline';
+    default: return 'star-outline';
+  }
+}
+
 const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.md,
@@ -148,6 +210,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.sm,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
   },
   avatarText: {
     color: colors.primary,
@@ -227,6 +294,45 @@ const styles = StyleSheet.create({
     ...typography.body,
     marginBottom: spacing.sm,
     lineHeight: 22,
+  },
+  achievementShareCard: {
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  achievementShareHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  achievementShareIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
+  },
+  achievementShareLabel: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  achievementShareTitle: {
+    ...typography.body,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  achievementShareDescription: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
   },
   actionsRow: {
     flexDirection: 'row',

@@ -1,50 +1,20 @@
 // author: caitriona mccann
 // date: 27/11/2025
-// last updated: 10/02/2026
-// home screen - clean white design with green accents
+// last updated: 04/03/2026
+// home screen - clean light design with green accents
 // quick actions, sustainability tip, community section
-// view-based icons, no emojis
+// uses ionicons for proper icons
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { useAuth } from '../../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/Card';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme/theme';
 
-// simple view-based icons
-const ScanIcon = () => (
-  <View style={iconStyles.scanIcon}>
-    <View style={iconStyles.scanFrame}>
-      <View style={[iconStyles.scanCorner, { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3 }]} />
-      <View style={[iconStyles.scanCorner, { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3 }]} />
-      <View style={[iconStyles.scanCorner, { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3 }]} />
-      <View style={[iconStyles.scanCorner, { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3 }]} />
-      <View style={iconStyles.scanRect} />
-    </View>
-  </View>
-);
-
-const EditIcon = () => (
-  <View style={iconStyles.editIcon}>
-    <View style={iconStyles.tagShape} />
-    <View style={iconStyles.tagHole} />
-  </View>
-);
-
-const LeafLogo = () => (
-  <View style={iconStyles.logoContainer}>
-    <View style={iconStyles.logoCircle}>
-      <Text style={iconStyles.logoTextW}>W</Text>
-      <Text style={iconStyles.logoTextA}>A</Text>
-    </View>
-  </View>
-);
-
 const HomeScreen = () => {
   const navigation = useNavigation();
-  const { user, isGuest } = useAuth();
 
   const sustainabilityTips = [
     "Natural fibers like cotton and linen are biodegradable",
@@ -58,22 +28,19 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoSection}>
-            <LeafLogo />
-            <Text style={styles.appName}>WearAware</Text>
+            <View style={styles.logoBox}>
+              <Ionicons name="leaf" size={22} color={colors.background} />
+            </View>
+            <View>
+              <Text style={styles.appName}>WearAware</Text>
+              <Text style={styles.appTagline}>Sustainable Scan Assistant</Text>
+            </View>
           </View>
         </View>
-
-        {/* Welcome */}
-        <Text style={styles.greeting}>
-          {isGuest ? 'Welcome, Guest' : `Welcome back`}
-        </Text>
-        <Text style={styles.greetingSub}>
-          Scan a clothing label to check its environmental impact
-        </Text>
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
@@ -85,13 +52,10 @@ const HomeScreen = () => {
             accessibilityLabel="Scan a label"
             accessibilityHint="Open the camera to scan a clothing care label"
           >
-            <View style={styles.primaryActionIcon}>
-              <ScanIcon />
+            <View style={[styles.actionIconBase, styles.primaryActionIcon]}>
+              <Ionicons name="camera" size={30} color={colors.background} />
             </View>
             <Text style={styles.primaryActionTitle}>Scan Label</Text>
-            <Text style={styles.primaryActionDesc}>
-              Use your camera to scan clothing labels
-            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -102,23 +66,24 @@ const HomeScreen = () => {
             accessibilityLabel="Manual entry"
             accessibilityHint="Enter garment details manually"
           >
-            <View style={styles.secondaryActionIcon}>
-              <EditIcon />
+            <View style={[styles.actionIconBase, styles.secondaryActionIcon]}>
+              <Ionicons name="reader-outline" size={24} color={colors.primary} />
             </View>
-            <View style={styles.secondaryActionText}>
-              <Text style={styles.secondaryActionTitle}>Manual Entry</Text>
-              <Text style={styles.secondaryActionDesc}>Enter details manually</Text>
-            </View>
+            <Text style={styles.secondaryActionTitle}>Manual Entry</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
         {/* Sustainability Tip */}
         <Card style={styles.tipCard}>
-          <Text style={styles.tipLabel}>Sustainability Tip</Text>
+          <View style={styles.tipHeader}>
+            <Ionicons name="leaf-outline" size={16} color={colors.primary} />
+            <Text style={styles.tipLabel}>Sustainability Tip</Text>
+          </View>
           <Text style={styles.tipText}>{randomTip}</Text>
         </Card>
 
-        {/* Community Section */}
+        {/* Explore Section */}
         <Text style={styles.sectionTitle}>Explore</Text>
         <View style={styles.exploreGrid}>
           <TouchableOpacity
@@ -128,7 +93,7 @@ const HomeScreen = () => {
             accessibilityLabel="Challenges"
           >
             <View style={styles.exploreIconBox}>
-              <Text style={styles.exploreIconText}>CH</Text>
+              <Ionicons name="trophy-outline" size={24} color={colors.primary} />
             </View>
             <Text style={styles.exploreLabel}>Challenges</Text>
           </TouchableOpacity>
@@ -139,7 +104,7 @@ const HomeScreen = () => {
             accessibilityLabel="Leaderboard"
           >
             <View style={styles.exploreIconBox}>
-              <Text style={styles.exploreIconText}>LB</Text>
+              <Ionicons name="podium-outline" size={24} color={colors.primary} />
             </View>
             <Text style={styles.exploreLabel}>Leaderboard</Text>
           </TouchableOpacity>
@@ -150,12 +115,12 @@ const HomeScreen = () => {
             accessibilityLabel="Wishlist"
           >
             <View style={styles.exploreIconBox}>
-              <Text style={styles.exploreIconText}>WL</Text>
+              <Ionicons name="heart-outline" size={24} color={colors.primary} />
             </View>
             <Text style={styles.exploreLabel}>Wishlist</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 };
@@ -165,97 +130,109 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
+  content: {
+    flex: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.lg,
   },
+  // header
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
   logoSection: {
-    alignItems: 'center',
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
   },
+  logoBox: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   appName: {
-    ...typography.h2,
+    ...typography.h3,
     color: colors.primary,
-    letterSpacing: 0.5,
     fontWeight: '800',
   },
-  greeting: {
-    ...typography.h1,
-    marginBottom: spacing.xs,
-  },
-  greetingSub: {
-    ...typography.body,
+  appTagline: {
+    ...typography.caption,
     color: colors.textSecondary,
-    marginBottom: spacing.xl,
+    marginTop: 1,
   },
   // quick actions
   quickActions: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   primaryAction: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.lg,
-    padding: spacing.xl,
+    padding: spacing.lg,
+    height: 250,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    ...shadows.glow,
+    borderWidth: 0,
+    ...shadows.soft,
+  },
+  actionIconBase: {
+    width: 52,
+    height: 52,
+    borderRadius: borderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   primaryActionIcon: {
-    marginBottom: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.22)',
   },
   primaryActionTitle: {
     ...typography.h2,
-    color: colors.primary,
-    marginBottom: spacing.xs,
-  },
-  primaryActionDesc: {
-    ...typography.body,
-    color: colors.textSecondary,
+    color: colors.background,
   },
   secondaryAction: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadows.soft,
   },
   secondaryActionIcon: {
+    backgroundColor: colors.primaryLight,
     marginRight: spacing.md,
   },
-  secondaryActionText: {
-    flex: 1,
-  },
   secondaryActionTitle: {
-    ...typography.h3,
-    marginBottom: spacing.xs,
-  },
-  secondaryActionDesc: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+    ...typography.body,
+    fontWeight: '700',
+    flex: 1,
+    includeFontPadding: false,
   },
   // tip card
   tipCard: {
     marginBottom: spacing.lg,
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
-    backgroundColor: colors.surface,
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
   },
   tipLabel: {
     ...typography.caption,
     fontWeight: '700',
     color: colors.primary,
-    marginBottom: spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
@@ -272,7 +249,6 @@ const styles = StyleSheet.create({
   exploreGrid: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
   exploreCard: {
     flex: 1,
@@ -282,20 +258,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadows.soft,
   },
   exploreIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.sm,
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.full,
     backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.sm,
-  },
-  exploreIconText: {
-    ...typography.bodySmall,
-    fontWeight: '800',
-    color: colors.primary,
   },
   exploreLabel: {
     ...typography.bodySmall,
@@ -304,88 +276,4 @@ const styles = StyleSheet.create({
   },
 });
 
-const iconStyles = StyleSheet.create({
-  scanIcon: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scanFrame: {
-    width: 36,
-    height: 36,
-    position: 'relative',
-  },
-  scanCorner: {
-    position: 'absolute',
-    width: 10,
-    height: 10,
-    borderColor: colors.primary,
-    borderRadius: 2,
-  },
-  scanRect: {
-    position: 'absolute',
-    width: 16,
-    height: 10,
-    backgroundColor: colors.primary,
-    borderRadius: 2,
-    top: 13,
-    left: 10,
-  },
-  editIcon: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  tagShape: {
-    width: 28,
-    height: 34,
-    backgroundColor: colors.primary,
-    borderRadius: 6,
-    transform: [{ rotate: '-15deg' }],
-  },
-  tagHole: {
-    position: 'absolute',
-    width: 6,
-    height: 6,
-    backgroundColor: colors.surface,
-    borderRadius: 3,
-    top: 10,
-    left: 16,
-    transform: [{ rotate: '-15deg' }],
-  },
-  logoContainer: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    paddingHorizontal: 4,
-  },
-  logoTextW: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.background,
-    letterSpacing: -2,
-  },
-  logoTextA: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.background,
-    letterSpacing: -2,
-  },
-});
-
 export default HomeScreen;
-
-

@@ -4,13 +4,15 @@
 // connects to google vision api to read the text from clothing labels
 
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Modal, FlatList, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Image, StatusBar } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
+import ItemTypePickerModal from '../../components/ItemTypePickerModal';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 import { processImageHybrid } from '../../services/hybridOcr';
 import { saveScanToBackend } from '../../services/api';
@@ -29,11 +31,31 @@ const CameraScreen = () => {
   const [selectedItemType, setSelectedItemType] = useState(null);
   const [selectedGender, setSelectedGender] = useState(null); // 'mens' or 'womens'
   const [scanMode, setScanMode] = useState('full'); // 'full' or 'care'
+  const [showItemTypeModal, setShowItemTypeModal] = useState(false);
   const cameraRef = useRef(null);
 
   // two-step flow state for full scan
   const [scanStep, setScanStep] = useState('label'); // 'label' or 'garment'
   const [labelScanData, setLabelScanData] = useState(null); // stores OCR result from step 1
+
+  const getCategoryIcon = (category) => {
+    switch (category) {
+      case 'tops':
+        return 'shirt-outline';
+      case 'bottoms':
+        return 'walk-outline';
+      case 'outerwear':
+        return 'snow-outline';
+      case 'dresses':
+        return 'woman-outline';
+      case 'undergarments':
+        return 'ellipse-outline';
+      case 'accessories':
+        return 'sparkles-outline';
+      default:
+        return 'cube-outline';
+    }
+  };
 
   // start scanning after user makes selection
   const handleStartScanning = () => {
@@ -148,7 +170,7 @@ const CameraScreen = () => {
           <Button title="Grant Permission" onPress={requestPermission} />
           <Button
             title="Go Back"
-            onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home')}
+            onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' })}
             variant="secondary"
             style={styles.backButton}
           />
@@ -351,6 +373,177 @@ const CameraScreen = () => {
     }
   };
 
+  if (showPreScanForm) {
+    return (
+      <View style={styles.preScanModalScreen}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+        <SafeAreaView style={styles.formContainer}>
+          <View style={styles.formContent}>
+            <TouchableOpacity
+              onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' })}
+              style={styles.formCloseButton}
+            >
+              <View style={styles.backRow}>
+                <Ionicons name="chevron-back" size={20} color={colors.primary} />
+                <Text style={styles.closeButtonText}>Back</Text>
+              </View>
+            </TouchableOpacity>
+
+            <Text style={styles.formTitle}>Before You Scan</Text>
+            <Text style={styles.formSubtitle}>
+              Quick setup for better scan accuracy.
+            </Text>
+
+            {/* Scan Mode Selector */}
+            <View style={styles.modeSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  scanMode === 'full' && styles.modeButtonActive,
+                ]}
+                onPress={() => setScanMode('full')}
+              >
+                <View style={[styles.modeIconWrap, scanMode === 'full' && styles.modeIconWrapActive]}>
+                  <Ionicons name="scan-outline" size={20} color={scanMode === 'full' ? colors.background : colors.primary} />
+                </View>
+                <Text style={[
+                  styles.modeButtonText,
+                  scanMode === 'full' && styles.modeButtonTextActive,
+                ]}>
+                  Full Scan
+                </Text>
+                <Text style={styles.modeSubtext}>Label + Item Photo</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  scanMode === 'care' && styles.modeButtonActive,
+                ]}
+                onPress={() => setScanMode('care')}
+              >
+                <View style={[styles.modeIconWrap, scanMode === 'care' && styles.modeIconWrapActive]}>
+                  <Ionicons name="water-outline" size={20} color={scanMode === 'care' ? colors.background : colors.primary} />
+                </View>
+                <Text style={[
+                  styles.modeButtonText,
+                  scanMode === 'care' && styles.modeButtonTextActive,
+                ]}>
+                  Care Labels
+                </Text>
+                <Text style={styles.modeSubtext}>Washing Instructions</Text>
+              </TouchableOpacity>
+            </View>
+
+            {scanMode === 'full' ? (
+              <View style={styles.detailsCard}>
+                <Text style={styles.inputLabel}>Brand Name</Text>
+                <View style={styles.brandInputWrap}>
+                  <Ionicons name="pricetag-outline" size={18} color={colors.textSecondary} />
+                  <TextInput
+                    style={styles.brandInput}
+                    placeholder="e.g., Zara, H&M, Penneys"
+                    placeholderTextColor={colors.textSecondary}
+                    value={brandName}
+                    onChangeText={setBrandName}
+                    autoCapitalize="words"
+                  />
+                </View>
+
+                <Text style={styles.inputLabel}>Gender</Text>
+                <View style={styles.genderSelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderButton,
+                      selectedGender === 'mens' && styles.genderButtonActive,
+                    ]}
+                    onPress={() => setSelectedGender('mens')}
+                  >
+                    <Text style={[
+                      styles.genderButtonText,
+                      selectedGender === 'mens' && styles.genderButtonTextActive,
+                    ]}>
+                      <Ionicons name="man-outline" size={16} color={selectedGender === 'mens' ? colors.primary : colors.textSecondary} /> Men's
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderButton,
+                      selectedGender === 'womens' && styles.genderButtonActive,
+                    ]}
+                    onPress={() => setSelectedGender('womens')}
+                  >
+                    <Text style={[
+                      styles.genderButtonText,
+                      selectedGender === 'womens' && styles.genderButtonTextActive,
+                    ]}>
+                      <Ionicons name="woman-outline" size={16} color={selectedGender === 'womens' ? colors.primary : colors.textSecondary} /> Women's
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.inputLabel}>Item Type</Text>
+                <TouchableOpacity
+                  style={styles.itemTypePickerButton}
+                  onPress={() => setShowItemTypeModal(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Select item type"
+                >
+                  <View style={styles.itemTypePickerLeft}>
+                    <Ionicons
+                      name={getCategoryIcon(selectedItemType?.category || 'general')}
+                      size={18}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.itemTypePickerText}>
+                      {selectedItemType?.name || 'Select item type'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
+                {selectedItemType?.weight ? (
+                  <Text style={styles.itemTypeHint}>Estimated weight: ~{selectedItemType.weight}g</Text>
+                ) : null}
+              </View>
+            ) : (
+              <View style={styles.careModeBanner}>
+                <Ionicons name="water-outline" size={26} color={colors.primary} />
+                <Text style={styles.careModeText}>
+                  Scan a care label to get washing, drying, and ironing guidance.
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.formActions}>
+              <Button
+                title={scanMode === 'care' ? 'Scan Care Label' : 'Start Scanning'}
+                onPress={handleStartScanning}
+                style={styles.startButton}
+              />
+
+              <Button
+                title="Upload Image from Gallery"
+                onPress={handlePickImage}
+                variant="secondary"
+                style={styles.uploadButton}
+              />
+            </View>
+          </View>
+
+          <ItemTypePickerModal
+            visible={showItemTypeModal}
+            selectedType={selectedItemType?.name}
+            onSelect={(item) => {
+              setSelectedItemType(item);
+              setShowItemTypeModal(false);
+            }}
+            onClose={() => setShowItemTypeModal(false)}
+          />
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} ref={cameraRef} facing="back">
@@ -374,7 +567,7 @@ const CameraScreen = () => {
             accessibilityRole="button"
             accessibilityLabel="Close camera"
           >
-            <Text style={styles.closeText}>X</Text>
+            <Ionicons name="close" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
           {/* Step indicator for full scan mode */}
@@ -413,7 +606,7 @@ const CameraScreen = () => {
               accessibilityRole="button"
               accessibilityLabel="Pick from gallery"
             >
-              <Text style={styles.galleryButtonText}>Gallery</Text>
+              <Ionicons name="images-outline" size={24} color="#FFFFFF" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.captureButton}
@@ -430,176 +623,6 @@ const CameraScreen = () => {
           </View>
         </SafeAreaView>
       </CameraView>
-
-      <Modal
-        visible={showPreScanForm}
-        transparent={false}
-        animationType="slide"
-      >
-        <SafeAreaView style={styles.formContainer}>
-          <ScrollView contentContainerStyle={styles.formContent}>
-            <TouchableOpacity
-              onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home')}
-              style={styles.formCloseButton}
-            >
-              <Text style={styles.closeButtonText}>← Back</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.formTitle}>Before You Scan</Text>
-            <Text style={styles.formSubtitle}>
-              Choose what you want to scan
-            </Text>
-
-            {/* Scan Mode Selector */}
-            <View style={styles.modeSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.modeButton,
-                  scanMode === 'full' && styles.modeButtonActive,
-                ]}
-                onPress={() => setScanMode('full')}
-              >
-                <Text style={[
-                  styles.modeButtonText,
-                  scanMode === 'full' && styles.modeButtonTextActive,
-                ]}>
-                  Full Scan
-                </Text>
-                <Text style={styles.modeSubtext}>Label + Item Photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.modeButton,
-                  scanMode === 'care' && styles.modeButtonActive,
-                ]}
-                onPress={() => setScanMode('care')}
-              >
-                <Text style={[
-                  styles.modeButtonText,
-                  scanMode === 'care' && styles.modeButtonTextActive,
-                ]}>
-                  Care Labels
-                </Text>
-                <Text style={styles.modeSubtext}>Washing Instructions</Text>
-              </TouchableOpacity>
-            </View>
-
-            {scanMode === 'full' ? (
-              <>
-                {/* How it works explanation */}
-                <View style={styles.howItWorks}>
-                  <Text style={styles.howItWorksTitle}>How it works</Text>
-                  <View style={styles.howItWorksStep}>
-                    <View style={styles.stepNumber}>
-                      <Text style={styles.stepNumberText}>1</Text>
-                    </View>
-                    <Text style={styles.howItWorksText}>Scan the care label to detect fiber composition</Text>
-                  </View>
-                  <View style={styles.howItWorksStep}>
-                    <View style={styles.stepNumber}>
-                      <Text style={styles.stepNumberText}>2</Text>
-                    </View>
-                    <Text style={styles.howItWorksText}>Take a photo of the garment for AI visual matching</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.inputLabel}>Brand Name</Text>
-                <TextInput
-                  style={styles.brandInput}
-                  placeholder="e.g., Zara, H&M, Penneys"
-                  placeholderTextColor={colors.textSecondary}
-                  value={brandName}
-                  onChangeText={setBrandName}
-                  autoCapitalize="words"
-                />
-
-                <Text style={styles.inputLabel}>Gender</Text>
-                <View style={styles.genderSelector}>
-                  <TouchableOpacity
-                    style={[
-                      styles.genderButton,
-                      selectedGender === 'mens' && styles.genderButtonActive,
-                    ]}
-                    onPress={() => setSelectedGender('mens')}
-                  >
-                    <Text style={[
-                      styles.genderButtonText,
-                      selectedGender === 'mens' && styles.genderButtonTextActive,
-                    ]}>
-                      Men's
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.genderButton,
-                      selectedGender === 'womens' && styles.genderButtonActive,
-                    ]}
-                    onPress={() => setSelectedGender('womens')}
-                  >
-                    <Text style={[
-                      styles.genderButtonText,
-                      selectedGender === 'womens' && styles.genderButtonTextActive,
-                    ]}>
-                      Women's
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={styles.inputLabel}>Item Type</Text>
-                <FlatList
-                  data={ITEM_TYPES}
-                  keyExtractor={(item) => item.name}
-                  scrollEnabled={false}
-                  numColumns={2}
-                  columnWrapperStyle={styles.itemTypeRow}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={[
-                        styles.itemTypeButton,
-                        selectedItemType?.name === item.name && styles.selectedItemType,
-                      ]}
-                      onPress={() => setSelectedItemType(item)}
-                    >
-                      <Text style={[
-                        styles.itemTypeName,
-                        selectedItemType?.name === item.name && styles.selectedItemText,
-                      ]}>
-                        {item.name}
-                      </Text>
-                      <Text style={styles.itemTypeWeight}>~{item.weight}g</Text>
-                      {selectedItemType?.name === item.name && (
-                        <Text style={styles.checkmark}>✓</Text>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                />
-              </>
-            ) : (
-              <View style={styles.careModeBanner}>
-                <Text style={styles.careModeText}>
-                  Scan your care label to see washing, drying, and ironing instructions
-                </Text>
-              </View>
-            )}
-
-            <Button
-              title={scanMode === 'care' ? 'Scan Care Label' : 'Start Scanning'}
-              onPress={handleStartScanning}
-              style={styles.startButton}
-            />
-            
-            <Text style={styles.orDivider}>OR</Text>
-            
-            <Button
-              title="Upload Image from Gallery"
-              onPress={handlePickImage}
-              variant="secondary"
-              style={styles.uploadButton}
-            />
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
     </View>
   );
 };
@@ -640,11 +663,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  closeText: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    fontWeight: '600',
   },
   scanningArea: {
     flex: 1,
@@ -716,12 +734,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
   },
-  galleryButtonText: {
-    ...typography.caption,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 10,
-  },
   captureButton: {
     width: 80,
     height: 80,
@@ -745,13 +757,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  preScanModalScreen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   formContent: {
+    flex: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.md,
   },
   formCloseButton: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   closeButtonText: {
     ...typography.body,
@@ -765,18 +789,18 @@ const styles = StyleSheet.create({
   formSubtitle: {
     ...typography.body,
     color: colors.textSecondary,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   modeSelector: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
   },
   modeButton: {
     flex: 1,
     padding: spacing.md,
     borderRadius: borderRadius.md,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     alignItems: 'center',
@@ -784,6 +808,19 @@ const styles = StyleSheet.create({
   modeButtonActive: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryLight,
+    borderWidth: 2,
+  },
+  modeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  modeIconWrapActive: {
+    backgroundColor: colors.primary,
   },
   modeButtonText: {
     ...typography.body,
@@ -838,56 +875,27 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  // How it works section
-  howItWorks: {
-    backgroundColor: colors.surfaceSecondary,
+  detailsCard: {
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.md,
-    marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  howItWorksTitle: {
-    ...typography.bodySmall,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  howItWorksStep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  stepNumber: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.sm,
-  },
-  stepNumberText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.background,
-  },
-  howItWorksText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    flex: 1,
+    marginBottom: spacing.md,
   },
   careModeBanner: {
     backgroundColor: colors.primaryLight,
     padding: spacing.lg,
     borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   careModeText: {
-    ...typography.body,
-    color: colors.text,
+    ...typography.bodySmall,
+    color: colors.textPrimary,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   inputLabel: {
     ...typography.body,
@@ -895,15 +903,23 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     color: colors.text,
   },
-  brandInput: {
-    ...typography.body,
+  brandInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     marginBottom: spacing.lg,
     backgroundColor: colors.surface,
+  },
+  brandInput: {
+    ...typography.body,
+    flex: 1,
+    minHeight: 44,
+    color: colors.textPrimary,
   },
   genderSelector: {
     flexDirection: 'row',
@@ -924,16 +940,50 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
   },
   genderButtonText: {
-    ...typography.body,
+    ...typography.bodySmall,
     fontWeight: '600',
     color: colors.textSecondary,
+    textAlign: 'center',
   },
   genderButtonTextActive: {
     color: colors.primary,
   },
-  itemTypeRow: {
+  itemTypePickerButton: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 48,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  itemTypePickerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  itemTypePickerText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  itemTypeHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  formActions: {
+    marginTop: 'auto',
+    paddingTop: spacing.sm,
+  },
+  startButton: {
+    marginTop: spacing.sm,
+  },
+  uploadButton: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
   itemTypeButton: {
     flex: 1,
@@ -966,23 +1016,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: spacing.xs,
   },
-  checkmark: {
-    fontSize: 16,
-    color: colors.primary,
-    marginTop: spacing.xs,
-  },
-  startButton: {
-    marginTop: spacing.lg,
-  },
   orDivider: {
     ...typography.body,
     textAlign: 'center',
     color: colors.textSecondary,
     marginVertical: spacing.md,
     fontWeight: '600',
-  },
-  uploadButton: {
-    marginBottom: spacing.md,
   },
 });
 

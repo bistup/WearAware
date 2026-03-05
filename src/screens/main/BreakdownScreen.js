@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Card from '../../components/Card';
 import GradeIndicator from '../../components/GradeIndicator';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../../theme/theme';
 import { getFiberImpact } from '../../utils/impactCalculator';
 
@@ -40,7 +41,10 @@ const BreakdownScreen = () => {
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Text style={styles.backText}>← Back</Text>
+          <View style={styles.backRow}>
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
 
         <Text style={styles.title}>Environmental Breakdown</Text>
@@ -180,6 +184,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   backText: {
     ...typography.body,
     color: colors.primary,

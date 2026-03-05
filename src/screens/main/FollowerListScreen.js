@@ -3,7 +3,7 @@
 // follower/following list screen - shows followers or following users
 // allows unfollowing and navigating to profiles
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,11 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 import { fetchFollowers, fetchFollowing } from '../../services/api';
 
@@ -25,32 +27,57 @@ const FollowerListScreen = () => {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    loadUsers();
-  }, [firebaseUid, type]);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!firebaseUid) {
+        setUsers([]);
+        setError('Unable to load this list right now.');
+        setLoading(false);
+        return;
+      }
+      loadUsers();
+    }, [firebaseUid, type])
+  );
 
   const loadUsers = async () => {
+    if (!firebaseUid) return;
     setLoading(true);
-    const result = isFollowers
-      ? await fetchFollowers(firebaseUid)
-      : await fetchFollowing(firebaseUid);
+    setError('');
+    try {
+      const result = isFollowers
+        ? await fetchFollowers(firebaseUid)
+        : await fetchFollowing(firebaseUid);
 
-    if (result.success) {
-      setUsers(isFollowers ? (result.followers || []) : (result.following || []));
+      if (result.success) {
+        setUsers(isFollowers ? (result.followers || []) : (result.following || []));
+      } else {
+        setUsers([]);
+        setError(result.error || 'Failed to load users.');
+      }
+    } catch (err) {
+      console.error('Failed to load followers/following:', err);
+      setUsers([]);
+      setError('Failed to load users.');
     }
     setLoading(false);
   };
 
   const renderUser = ({ item }) => {
     const name = item.display_name || item.email?.split('@')[0] || 'User';
+    const avatarUrl = item.avatar_url || null;
     return (
       <TouchableOpacity
         style={styles.userItem}
         onPress={() => navigation.push('SocialProfile', { firebaseUid: item.firebase_uid })}
       >
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
+          )}
         </View>
         <View style={styles.userInfo}>
           <Text style={styles.userName}>{name}</Text>
@@ -69,7 +96,10 @@ const FollowerListScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
+          <View style={styles.backRow}>
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
         <Text style={styles.title}>
           {isFollowers ? 'Followers' : 'Following'}
@@ -79,6 +109,10 @@ const FollowerListScreen = () => {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : error ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>{error}</Text>
         </View>
       ) : (
         <FlatList
@@ -109,6 +143,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
   },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   backButton: {
     minHeight: 44,
     justifyContent: 'center',
@@ -117,7 +156,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.primary,
     fontWeight: '600',
-    marginBottom: spacing.sm,
   },
   title: {
     ...typography.h2,
@@ -147,6 +185,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
   },
   avatarText: {
     color: colors.primary,

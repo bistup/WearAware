@@ -3,11 +3,12 @@
 // challenges and achievements screen - gamification hub
 // shows active challenges, achievements progress, and unlocked badges
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/Card';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 import { fetchAchievements, fetchChallenges, joinChallenge, shareAchievement } from '../../services/api';
@@ -20,6 +21,25 @@ const ChallengesScreen = () => {
   const [challenges, setChallenges] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const normalizeChallenge = (challenge) => ({
+    ...challenge,
+    title: challenge.title,
+    description: challenge.description,
+    challenge_type: challenge.challenge_type || challenge.goalType || challenge.goal_type || challenge.type,
+    target_value: challenge.target_value ?? challenge.goalValue ?? challenge.goal_value ?? 1,
+    reward_points: challenge.reward_points ?? challenge.points ?? 0,
+    user_progress: challenge.user_progress ?? challenge.progress ?? 0,
+    is_joined: challenge.is_joined ?? challenge.joined ?? Boolean(challenge.user_challenge_id),
+    end_date: challenge.end_date || challenge.endsAt || challenge.ends_at,
+  });
+
+  const normalizeAchievement = (achievement) => ({
+    ...achievement,
+    name: achievement.name || achievement.title,
+    user_progress: achievement.user_progress ?? achievement.progress ?? 0,
+    is_unlocked: achievement.is_unlocked ?? achievement.unlocked ?? false,
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -37,8 +57,16 @@ const ChallengesScreen = () => {
       fetchChallenges(),
       fetchAchievements(),
     ]);
-    if (challengeResult.success) setChallenges(challengeResult.challenges || []);
-    if (achievementResult.success) setAchievements(achievementResult.achievements || []);
+    if (challengeResult.success) {
+      setChallenges((challengeResult.challenges || []).map(normalizeChallenge));
+    } else {
+      setChallenges([]);
+    }
+    if (achievementResult.success) {
+      setAchievements((achievementResult.achievements || []).map(normalizeAchievement));
+    } else {
+      setAchievements([]);
+    }
     setLoading(false);
   };
 
@@ -62,19 +90,33 @@ const ChallengesScreen = () => {
   };
 
   const getDaysRemaining = (endDate) => {
+    if (!endDate) return 0;
     const now = new Date();
     const end = new Date(endDate);
+    if (Number.isNaN(end.getTime())) return 0;
     const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
     return Math.max(0, diff);
   };
 
   const getCategoryIcon = (category) => {
     switch (category) {
-      case 'scanning': return '';
-      case 'social': return '';
-      case 'sustainability': return '';
-      case 'streak': return '';
-      default: return '';
+      case 'scanning': return 'scan-outline';
+      case 'social': return 'people-outline';
+      case 'sustainability': return 'leaf-outline';
+      case 'streak': return 'flame-outline';
+      default: return 'star-outline';
+    }
+  };
+
+  const getAchievementIcon = (achievement, isUnlocked) => {
+    if (!isUnlocked) return 'lock-closed-outline';
+
+    switch (achievement.category) {
+      case 'scanning': return 'scan-outline';
+      case 'social': return 'people-outline';
+      case 'sustainability': return 'leaf-outline';
+      case 'streak': return 'flame-outline';
+      default: return 'star-outline';
     }
   };
 
@@ -97,9 +139,7 @@ const ChallengesScreen = () => {
             <Card key={challenge.id} style={styles.challengeCard}>
               <View style={styles.challengeHeader}>
                 <View style={styles.challengeType}>
-                  <Text style={styles.challengeTypeText}>
-                    {challenge.challenge_type === 'scan_count' ? 'Scan' : 'Eco'}
-                  </Text>
+                  <Ionicons name={challenge.challenge_type === 'scan_count' ? 'scan-outline' : 'leaf-outline'} size={20} color={colors.primary} />
                 </View>
                 <View style={styles.challengeInfo}>
                   <Text style={styles.challengeTitle}>{challenge.title}</Text>
@@ -166,9 +206,10 @@ const ChallengesScreen = () => {
       ) : (
         Object.entries(groupedAchievements).map(([category, items]) => (
           <View key={category}>
-            <Text style={styles.categoryTitle}>
-              {getCategoryIcon(category)} {category.charAt(0).toUpperCase() + category.slice(1)}
-            </Text>
+            <View style={styles.categoryTitleRow}>
+              <Ionicons name={getCategoryIcon(category)} size={18} color={colors.primary} />
+              <Text style={styles.categoryTitle}>{category.charAt(0).toUpperCase() + category.slice(1)}</Text>
+            </View>
             {items.map((achievement) => {
               const progress = achievement.user_progress || 0;
               const target = achievement.threshold || 1;
@@ -181,9 +222,13 @@ const ChallengesScreen = () => {
                   style={[styles.achievementCard, !isUnlocked && styles.achievementLocked]}
                 >
                   <View style={styles.achievementHeader}>
-                    <Text style={styles.achievementIcon}>
-                      {isUnlocked ? achievement.icon || '' : ''}
-                    </Text>
+                    <View style={[styles.achievementIconBox, !isUnlocked && styles.achievementIconBoxLocked]}>
+                      <Ionicons
+                        name={getAchievementIcon(achievement, isUnlocked)}
+                        size={20}
+                        color={isUnlocked ? colors.primary : colors.textTertiary}
+                      />
+                    </View>
                     <View style={styles.achievementInfo}>
                       <Text style={[styles.achievementTitle, !isUnlocked && styles.lockedText]}>
                         {achievement.name}
@@ -230,7 +275,10 @@ const ChallengesScreen = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-            <Text style={styles.backText}>← Back</Text>
+            <View style={styles.backRow}>
+              <Ionicons name="chevron-back" size={20} color={colors.primary} />
+              <Text style={styles.backText}>Back</Text>
+            </View>
           </TouchableOpacity>
           <Card style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Sign In Required</Text>
@@ -258,10 +306,13 @@ const ChallengesScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-          <Text style={styles.backText}>← Back</Text>
+          <View style={styles.backRow}>
+              <Ionicons name="chevron-back" size={20} color={colors.primary} />
+              <Text style={styles.backText}>Back</Text>
+            </View>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Challenges & Achievements</Text>
+        <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">Challenges & Achievements</Text>
 
         {/* Tab Selector */}
         <View style={styles.tabContainer}>
@@ -288,7 +339,10 @@ const ChallengesScreen = () => {
           style={styles.leaderboardLink}
           onPress={() => navigation.navigate('Leaderboard')}
         >
-          <Text style={styles.leaderboardLinkText}>View Leaderboard →</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={styles.leaderboardLinkText}>View Leaderboard</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+          </View>
         </TouchableOpacity>
 
         {activeTab === 'challenges' ? renderChallenges() : renderAchievements()}
@@ -316,14 +370,16 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   backText: {
     ...typography.body,
     color: colors.primary,
     fontWeight: '600',
   },
   title: {
-    ...typography.h1,
+    ...typography.h2,
     marginBottom: spacing.lg,
+    includeFontPadding: false,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -455,10 +511,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   // achievements
+  categoryTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.md, marginBottom: spacing.sm },
   categoryTitle: {
     ...typography.h3,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
   },
   achievementCard: {
     marginBottom: spacing.sm,
@@ -471,9 +526,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  achievementIcon: {
-    fontSize: 28,
+  achievementIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: spacing.md,
+  },
+  achievementIconBoxLocked: {
+    backgroundColor: colors.surfaceSecondary,
   },
   achievementInfo: {
     flex: 1,

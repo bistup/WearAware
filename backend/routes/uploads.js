@@ -54,6 +54,14 @@ async function verifyUser(firebaseUid) {
   return result.rows.length > 0;
 }
 
+function resolveFirebaseUid(req) {
+  if (req.authUid) return req.authUid;
+  if (req.body && typeof req.body.firebaseUid === 'string' && req.body.firebaseUid.trim()) {
+    return req.body.firebaseUid.trim();
+  }
+  return null;
+}
+
 // helper: ensure user folder exists
 function ensureUserDir(firebaseUid) {
   // use a hashed folder name so firebase UID isn't exposed in URLs
@@ -81,7 +89,7 @@ router.post('/image', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    const { firebaseUid } = req.body;
+    const firebaseUid = resolveFirebaseUid(req);
 
     // auth gate: must be a registered user
     if (!firebaseUid || !(await verifyUser(firebaseUid))) {
@@ -133,7 +141,7 @@ router.post('/image', upload.single('image'), async (req, res) => {
  */
 router.delete('/image/:userHash/:filename', async (req, res) => {
   try {
-    const { firebaseUid } = req.body;
+    const firebaseUid = resolveFirebaseUid(req);
     if (!firebaseUid || !(await verifyUser(firebaseUid))) {
       return res.status(401).json({ error: 'Authentication required' });
     }
@@ -167,7 +175,7 @@ router.delete('/image/:userHash/:filename', async (req, res) => {
  */
 router.delete('/my-data', async (req, res) => {
   try {
-    const { firebaseUid } = req.body;
+    const firebaseUid = resolveFirebaseUid(req);
     if (!firebaseUid || !(await verifyUser(firebaseUid))) {
       return res.status(401).json({ error: 'Authentication required' });
     }

@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -21,6 +22,7 @@ import Card from '../../components/Card';
 import Button from '../../components/Button';
 import GradeIndicator from '../../components/GradeIndicator';
 import FeedPostCard from '../../components/FeedPostCard';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, getGradeColor } from '../../theme/theme';
 import {
   fetchUserProfile,
@@ -101,7 +103,10 @@ const SocialProfileScreen = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
+            <View style={styles.backRow}>
+              <Ionicons name="chevron-back" size={20} color={colors.primary} />
+              <Text style={styles.backText}>Back</Text>
+            </View>
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
@@ -121,16 +126,23 @@ const SocialProfileScreen = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.backButton}>
-            <Text style={styles.backText}>← Back</Text>
+            <View style={styles.backRow}>
+              <Ionicons name="chevron-back" size={20} color={colors.primary} />
+              <Text style={styles.backText}>Back</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
         {/* Profile Card */}
         <Card style={styles.profileCard}>
           <View style={styles.avatarLarge}>
-            <Text style={styles.avatarLargeText}>
-              {displayName.charAt(0).toUpperCase()}
-            </Text>
+            {profile.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatarLargeImage} />
+            ) : (
+              <Text style={styles.avatarLargeText}>
+                {displayName.charAt(0).toUpperCase()}
+              </Text>
+            )}
           </View>
           <Text style={styles.displayName}>{displayName}</Text>
           {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
@@ -284,6 +296,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
   },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   backButton: {
     minHeight: 44,
     justifyContent: 'center',
@@ -322,6 +339,11 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '800',
   },
+  avatarLargeImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: borderRadius.full,
+  },
   displayName: {
     ...typography.h2,
     marginBottom: spacing.xs,
@@ -347,6 +369,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   statItem: {
+    flex: 1,
     alignItems: 'center',
   },
   statValue: {
@@ -357,9 +380,11 @@ const styles = StyleSheet.create({
   statLabel: {
     ...typography.caption,
     color: colors.textSecondary,
+    textAlign: 'center',
   },
   followButton: {
     width: '100%',
+    alignSelf: 'center',
   },
   statsCard: {
     marginBottom: spacing.md,

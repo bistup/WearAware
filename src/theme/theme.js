@@ -1,9 +1,9 @@
 // author: caitriona mccann
 // date: 27/11/2025
-// last updated: 12/02/2026
-// design system - modern dark theme with vibrant green accents
+// last updated: 04/03/2026
+// design system - clean light theme with nature-inspired green accents
 // wcag 2.1 aa compliant, eu accessibility act (eaa) ready
-// glassmorphism-inspired surfaces, generous spacing, smooth radii
+// backwards-compatible exports for all existing screens
 
 import { PixelRatio } from 'react-native';
 
@@ -12,51 +12,94 @@ const fontScale = PixelRatio.getFontScale();
 const scale = (size) => Math.round(size * Math.min(fontScale, 1.5));
 
 export const colors = {
-  // dark base palette
-  background: '#0D0D0D',        // near-black canvas
-  surface: '#1A1A1A',           // elevated card surface
-  surfaceSecondary: '#242424',  // secondary panels, inputs
-  surfaceElevated: '#2A2A2A',   // modals, popovers
+  // light base palette
+  background: '#F7F9F8',        // soft off-white canvas
+  surface: '#FFFFFF',           // elevated card surface
+  surfaceSecondary: '#EEF1EF',  // secondary panels, inputs
+  surfaceElevated: '#FFFFFF',   // modals, popovers
 
-  // text hierarchy - all pass wcag aa on dark backgrounds
-  textPrimary: '#F5F5F5',       // primary text (15.4:1 on #1A1A1A)
-  textSecondary: '#A0A0A0',     // secondary labels (6.3:1 on #1A1A1A)
-  textTertiary: '#6B6B6B',      // hints, placeholders (4.5:1 on #1A1A1A)
+  // text hierarchy
+  textPrimary: '#0A1A14',       // near-black primary text
+  textSecondary: '#5E7068',     // secondary labels
+  textTertiary: '#94A39D',      // hints, placeholders
 
-  // vibrant green accent palette
-  primary: '#00E676',           // electric green accent
-  primaryLight: 'rgba(0, 230, 118, 0.12)', // green tint for backgrounds
-  primaryDark: '#00C853',       // pressed/emphasis green
-  primaryMuted: 'rgba(0, 230, 118, 0.06)', // ultra-subtle green wash
-  secondary: '#69F0AE',         // lighter green for secondary accents
-  accent: '#B9F6CA',            // pastel green for decorative use
+  // green accent palette
+  primary: '#1A6B4A',           // deep forest green
+  primaryLight: 'rgba(26, 107, 74, 0.10)', // green tint for backgrounds
+  primaryDark: '#145A3D',       // pressed/emphasis green
+  primaryMuted: 'rgba(26, 107, 74, 0.05)', // ultra-subtle green wash
+  secondary: '#00C96A',         // vibrant green for secondary accents
+  accent: '#00C96A',            // bright green for decorative use
 
-  // environmental grades - vivid, distinct on dark
-  gradeA: '#00E676',            // electric green
-  gradeB: '#76FF03',            // lime
-  gradeC: '#FFEA00',            // yellow
-  gradeD: '#FF9100',            // orange
-  gradeF: '#FF5252',            // red
+  // environmental grades - vivid, distinct on light
+  gradeA: '#00C96A',            // green
+  gradeB: '#7ED957',            // lime
+  gradeC: '#FFD166',            // amber
+  gradeD: '#FF9F43',            // orange
+  gradeF: '#C0392B',            // red
 
   // functional colors
-  border: '#2E2E2E',            // subtle dark border
-  divider: '#222222',           // near-invisible divider
-  error: '#FF5252',             // soft red
-  errorLight: 'rgba(255, 82, 82, 0.12)',
-  success: '#00E676',
-  successLight: 'rgba(0, 230, 118, 0.12)',
-  warning: '#FFD600',
-  warningLight: 'rgba(255, 214, 0, 0.12)',
+  border: '#E8EBE9',            // subtle light border
+  divider: '#E0E4E2',           // soft divider
+  error: '#C0392B',             // crimson red
+  errorLight: 'rgba(192, 57, 43, 0.10)',
+  success: '#00C96A',
+  successLight: 'rgba(0, 201, 106, 0.10)',
+  warning: '#FFD166',
+  warningLight: 'rgba(255, 209, 102, 0.12)',
   info: '#448AFF',
-  infoLight: 'rgba(68, 138, 255, 0.12)',
+  infoLight: 'rgba(68, 138, 255, 0.10)',
 
   // interactive states
-  pressed: 'rgba(0, 230, 118, 0.10)',
-  disabled: '#3A3A3A',
+  pressed: 'rgba(26, 107, 74, 0.10)',
+  disabled: '#C8CEC9',
 
   // shadow / glow
-  shadow: 'rgba(0, 0, 0, 0.40)',
-  glow: 'rgba(0, 230, 118, 0.25)',
+  shadow: 'rgba(0, 0, 0, 0.08)',
+  glow: 'rgba(0, 201, 106, 0.20)',
+};
+
+const LIGHT_COLORS = { ...colors };
+
+const DARK_COLORS = {
+  background: '#0E1412',
+  surface: '#14201C',
+  surfaceSecondary: '#1B2A24',
+  surfaceElevated: '#1A2722',
+
+  textPrimary: '#EAF3EF',
+  textSecondary: '#AFC3BA',
+  textTertiary: '#829A90',
+
+  primary: '#49B386',
+  primaryLight: 'rgba(73, 179, 134, 0.18)',
+  primaryDark: '#2F9A6D',
+  primaryMuted: 'rgba(73, 179, 134, 0.12)',
+  secondary: '#32D890',
+  accent: '#32D890',
+
+  gradeA: '#32D890',
+  gradeB: '#9AE46D',
+  gradeC: '#F5CB67',
+  gradeD: '#F4A261',
+  gradeF: '#E76F51',
+
+  border: '#24362F',
+  divider: '#213129',
+  error: '#E76F51',
+  errorLight: 'rgba(231, 111, 81, 0.16)',
+  success: '#32D890',
+  successLight: 'rgba(50, 216, 144, 0.16)',
+  warning: '#F5CB67',
+  warningLight: 'rgba(245, 203, 103, 0.16)',
+  info: '#7CB7FF',
+  infoLight: 'rgba(124, 183, 255, 0.16)',
+
+  pressed: 'rgba(73, 179, 134, 0.18)',
+  disabled: '#42544D',
+
+  shadow: 'rgba(0, 0, 0, 0.35)',
+  glow: 'rgba(50, 216, 144, 0.28)',
 };
 
 // backwards compatibility aliases
@@ -159,6 +202,33 @@ export const accessibility = {
   focusBorderColor: colors.primary,
 };
 
+function applyDerivedThemeTokens() {
+  // backwards compatibility aliases
+  colors.text = colors.textPrimary;
+  colors.cardBackground = colors.surface;
+
+  typography.h1.color = colors.textPrimary;
+  typography.h2.color = colors.textPrimary;
+  typography.h3.color = colors.textPrimary;
+  typography.body.color = colors.textPrimary;
+  typography.bodySmall.color = colors.textSecondary;
+  typography.caption.color = colors.textTertiary;
+
+  shadows.soft.shadowColor = colors.shadow;
+  shadows.medium.shadowColor = colors.shadow;
+  shadows.glow.shadowColor = colors.glow;
+
+  accessibility.focusBorderColor = colors.primary;
+}
+
+export function applyTheme(mode = 'light') {
+  const source = mode === 'dark' ? DARK_COLORS : LIGHT_COLORS;
+  Object.keys(source).forEach((key) => {
+    colors[key] = source[key];
+  });
+  applyDerivedThemeTokens();
+}
+
 // maps grade letter to accessible color
 export function getGradeColor(grade) {
   const map = {
@@ -182,5 +252,4 @@ export function getGradeLabel(grade) {
   };
   return map[grade] || 'Unknown';
 }
-
-
+  

@@ -4,10 +4,11 @@
 // supports weekly, monthly, and all-time periods
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/Card';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 import { fetchLeaderboard } from '../../services/api';
@@ -27,6 +28,18 @@ const LeaderboardScreen = () => {
   const [currentUserRank, setCurrentUserRank] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const normalizeEntry = (entry = {}) => ({
+    rank: entry.rank,
+    firebase_uid: entry.firebase_uid || entry.firebaseUid,
+    email: entry.email,
+    display_name: entry.display_name || entry.displayName,
+    avatar_url: entry.avatar_url || entry.avatarUrl,
+    total_scans: entry.total_scans ?? entry.scanCount ?? entry.scan_count ?? 0,
+    avg_score: entry.avg_score ?? entry.avgScore ?? 0,
+    achievement_points: entry.achievement_points ?? entry.achievementPoints ?? 0,
+    total_score: entry.total_score ?? entry.totalScore ?? entry.achievement_points ?? entry.achievementPoints ?? 0,
+  });
+
   useEffect(() => {
     loadLeaderboard();
   }, [period]);
@@ -35,8 +48,9 @@ const LeaderboardScreen = () => {
     setLoading(true);
     const result = await fetchLeaderboard(period);
     if (result.success) {
-      setEntries(result.leaderboard || []);
-      setCurrentUserRank(result.currentUserRank || null);
+      const normalizedEntries = (result.leaderboard || []).map(normalizeEntry);
+      setEntries(normalizedEntries);
+      setCurrentUserRank(result.currentUserRank ? normalizeEntry(result.currentUserRank) : null);
     }
     setLoading(false);
   };
@@ -63,7 +77,9 @@ const LeaderboardScreen = () => {
         <Card style={[styles.entryCard, isCurrentUser && styles.currentUserCard]}>
           <View style={styles.rankContainer}>
             {medal ? (
-              <Text style={styles.medalEmoji}>{medal}</Text>
+              <View style={[styles.medalBadge, { backgroundColor: rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : '#CD7F32' }]}>
+                <Text style={styles.medalText}>{rank}</Text>
+              </View>
             ) : (
               <Text style={styles.rankNumber}>{rank}</Text>
             )}
@@ -71,9 +87,13 @@ const LeaderboardScreen = () => {
 
           <View style={styles.avatarContainer}>
             <View style={[styles.avatar, rank <= 3 && styles.topAvatar]}>
-              <Text style={styles.avatarText}>
-                {(item.display_name || item.email || '?')[0].toUpperCase()}
-              </Text>
+              {item.avatar_url ? (
+                <Image source={{ uri: item.avatar_url }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {(item.display_name || item.email || '?')[0].toUpperCase()}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -104,7 +124,10 @@ const LeaderboardScreen = () => {
         accessibilityRole="button"
         accessibilityLabel="Go back"
       >
-        <Text style={styles.backText}>← Back</Text>
+        <View style={styles.backRow}>
+          <Ionicons name="chevron-back" size={20} color={colors.primary} />
+          <Text style={styles.backText}>Back</Text>
+        </View>
       </TouchableOpacity>
 
       <Text style={styles.title}>Leaderboard</Text>
@@ -189,6 +212,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   backText: {
     ...typography.body,
     color: colors.primary,
@@ -272,6 +296,8 @@ const styles = StyleSheet.create({
   medalEmoji: {
     fontSize: 24,
   },
+  medalBadge: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  medalText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
   rankNumber: {
     ...typography.body,
     fontWeight: '700',
@@ -287,6 +313,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
   },
   topAvatar: {
     backgroundColor: colors.primary,

@@ -11,10 +11,43 @@ const getUid = () => auth.currentUser?.uid;
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
+const getAuthHeaders = async (forceRefresh = false) => {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return {};
+
+  try {
+    const idToken = await user.getIdToken(forceRefresh);
+    return idToken ? { Authorization: `Bearer ${idToken}` } : {};
+  } catch (tokenError) {
+    console.warn('Failed to get Firebase ID token:', tokenError?.message || tokenError);
+    return {};
+  }
+};
+
 // generic fetch wrapper to reduce try/catch boilerplate
 const apiFetch = async (url, options = {}, fallback = null) => {
   try {
-    const response = await fetch(url, { headers: jsonHeaders, ...options });
+    let authHeaders = await getAuthHeaders(false);
+
+    const mergedHeaders = {
+      ...jsonHeaders,
+      ...authHeaders,
+      ...(options.headers || {}),
+    };
+
+    let response = await fetch(url, { ...options, headers: mergedHeaders });
+
+    // One retry on 401 with a forced token refresh to handle stale session tokens.
+    if (response.status === 401 && auth.currentUser && !auth.currentUser.isAnonymous) {
+      authHeaders = await getAuthHeaders(true);
+      const retryHeaders = {
+        ...jsonHeaders,
+        ...authHeaders,
+        ...(options.headers || {}),
+      };
+      response = await fetch(url, { ...options, headers: retryHeaders });
+    }
+
     const text = await response.text();
     let data;
     try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) }; }
@@ -142,10 +175,10 @@ export const fetchUserProfile = async (targetFirebaseUid) => {
   );
 };
 
-export const updateUserProfile = async ({ displayName, bio, privacyLevel }) => {
+export const updateUserProfile = async ({ displayName, bio, privacyLevel, avatarUrl }) => {
   return apiFetch(`${BACKEND_API_URL}/social/profile`, {
     method: 'PUT',
-    body: JSON.stringify({ firebaseUid: getUid(), displayName, bio, privacyLevel }),
+    body: JSON.stringify({ firebaseUid: getUid(), displayName, bio, privacyLevel, avatarUrl }),
   });
 };
 

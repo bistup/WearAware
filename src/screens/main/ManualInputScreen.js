@@ -12,6 +12,7 @@ import Button from '../../components/Button';
 import Input from '../../components/Input';
 import FiberPickerModal from '../../components/FiberPickerModal';
 import ItemTypePickerModal from '../../components/ItemTypePickerModal';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 import { saveScanToBackend } from '../../services/api';
 import { uploadScanImages } from '../../services/imageUpload';
@@ -168,7 +169,10 @@ const ManualInputScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-          <Text style={styles.backText}>← Back</Text>
+          <View style={styles.backRow}>
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
 
         <Text style={styles.title}>Manual Entry</Text>
@@ -185,7 +189,7 @@ const ManualInputScreen = () => {
             <Text style={itemType ? styles.selectedItemType : styles.placeholderText}>
               {itemType || 'Select item type...'}
             </Text>
-            <Text style={styles.dropdownArrow}>▼</Text>
+            <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -221,7 +225,7 @@ const ManualInputScreen = () => {
                 <Text style={fiber.name ? styles.selectedFiber : styles.placeholderText}>
                   {fiber.name || 'Select type...'}
                 </Text>
-                <Text style={styles.dropdownArrow}>▼</Text>
+                <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
               </TouchableOpacity>
               
               <TextInput
@@ -238,7 +242,7 @@ const ManualInputScreen = () => {
                   onPress={() => handleRemoveFiber(index)}
                   style={styles.removeButton}
                 >
-                  <Text style={styles.removeText}>X</Text>
+                  <Ionicons name="close-circle-outline" size={24} color={colors.error} />
                 </TouchableOpacity>
               )}
             </View>
@@ -269,7 +273,7 @@ const ManualInputScreen = () => {
           </View>
         ) : (
           <TouchableOpacity onPress={handlePickGarmentImage} style={styles.imagePicker}>
-            <Text style={styles.imagePickerIcon}>+</Text>
+            <Ionicons name="image-outline" size={32} color={colors.textSecondary} style={{ marginBottom: spacing.xs }} />
             <Text style={styles.imagePickerText}>Upload Garment Photo</Text>
           </TouchableOpacity>
         )}
@@ -308,6 +312,11 @@ const getStyles = (colors, typography, spacing, borderRadius) => StyleSheet.crea
     marginBottom: spacing.lg,
     minHeight: 44,
     justifyContent: 'center',
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   backText: {
     ...typography.body,

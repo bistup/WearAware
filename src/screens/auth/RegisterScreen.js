@@ -10,7 +10,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
-import { colors, typography, spacing } from '../../theme/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 
 const RegisterScreen = () => {
   const navigation = useNavigation();
@@ -53,6 +54,9 @@ const RegisterScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
+          <View style={styles.logoCircle} accessibilityRole="image" accessibilityLabel="WearAware logo">
+            <Ionicons name="leaf" size={32} color={colors.background} />
+          </View>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Join the sustainable fashion movement</Text>
         </View>
@@ -107,6 +111,15 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: spacing.xxl,
+  },
+  logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
   title: {
     ...typography.h1,

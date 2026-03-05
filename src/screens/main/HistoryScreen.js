@@ -12,6 +12,7 @@ import Card from '../../components/Card';
 import Button from '../../components/Button';
 import GradeIndicator from '../../components/GradeIndicator';
 import ExportModal from '../../components/ExportModal';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme/theme';
 import { fetchScanHistory, deleteScan } from '../../services/api';
 import { signOut } from 'firebase/auth';
@@ -109,71 +110,68 @@ const HistoryScreen = () => {
     const isSelected = comparisonMode && selectedScans.find(s => s.id === item.id);
     const hasImage = !!(item.thumbnailUrl || item.thumbnail_url || item.imageUrl || item.image_url);
     const imageUri = item.thumbnailUrl || item.thumbnail_url || item.imageUrl || item.image_url;
-    
+
     return (
-      <Card style={[styles.scanCard, isSelected && styles.selectedCard]}>
-        <TouchableOpacity
-          onPress={() => {
-            if (comparisonMode) {
-              handleSelectScan(item);
-            } else {
-              navigation.navigate('ScanResult', { 
-                scanData: item,
-                scanId: item.id 
-              });
-            }
-          }}
-          activeOpacity={0.7}
-          style={styles.scanContent}
-        >
-          {/* Image banner at top of card */}
-          {hasImage && (
-            <View style={styles.cardImageContainer}>
+      <TouchableOpacity
+        onPress={() => {
+          if (comparisonMode) {
+            handleSelectScan(item);
+          } else {
+            navigation.navigate('ScanResult', {
+              scanData: item,
+              scanId: item.id
+            });
+          }
+        }}
+        activeOpacity={0.7}
+        style={[styles.scanCard, isSelected && styles.selectedCard]}
+      >
+        <View style={styles.scanRow}>
+          {/* Thumbnail or grade circle */}
+          {hasImage ? (
+            <View style={styles.thumbnailContainer}>
               <Image
                 source={{ uri: imageUri }}
-                style={styles.cardImage}
+                style={styles.thumbnail}
                 resizeMode="cover"
               />
-              <View style={styles.cardImageOverlay} />
-              <View style={styles.cardGradeBadge}>
-                <GradeIndicator grade={item.grade || 'C'} size="small" />
-              </View>
-              {comparisonMode && (
-                <View style={styles.cardCheckboxOverlay}>
-                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                    {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                </View>
-              )}
+            </View>
+          ) : (
+            <View style={styles.gradeCircle}>
+              <GradeIndicator grade={item.grade || 'C'} size="small" />
             </View>
           )}
-          <View style={styles.scanHeader}>
-            {!hasImage && comparisonMode && (
-              <View style={styles.checkboxContainer}>
-                <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                  {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-              </View>
-            )}
-            <View style={styles.scanInfo}>
-              <Text style={styles.brand}>{item.brand || 'Unknown Brand'}</Text>
-              <Text style={styles.itemType}>{item.itemType || 'Garment'}</Text>
-              <Text style={styles.date}>
-                {new Date(item.createdAt).toLocaleDateString()}
-              </Text>
-            </View>
-            {!hasImage && <GradeIndicator grade={item.grade || 'C'} size="small" />}
+
+          {/* Info */}
+          <View style={styles.scanInfo}>
+            <Text style={styles.brand} numberOfLines={1}>{item.brand || 'Unknown Brand'}</Text>
+            <Text style={styles.itemType} numberOfLines={1}>{item.itemType || 'Garment'}</Text>
+            <Text style={styles.date}>
+              {new Date(item.createdAt).toLocaleDateString()}
+            </Text>
           </View>
-        </TouchableOpacity>
-        {!comparisonMode && (
-          <TouchableOpacity
-            onPress={() => handleDeleteScan(item.id, item.brand)}
-            style={styles.deleteButton}
-          >
-            <Text style={styles.deleteText}>Delete</Text>
-          </TouchableOpacity>
-        )}
-      </Card>
+
+          {/* Right side: grade (if image shown) + actions */}
+          <View style={styles.scanRight}>
+            {hasImage && <GradeIndicator grade={item.grade || 'C'} size="small" />}
+            {comparisonMode ? (
+              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                {isSelected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e?.stopPropagation?.();
+                  handleDeleteScan(item.id, item.brand);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -214,33 +212,30 @@ const HistoryScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.title}>Scan History</Text>
-        </View>
+        <Text style={styles.title}>Scan History</Text>
         {!isGuest && scans.length > 0 && (
           <View style={styles.headerActions}>
-            {!comparisonMode && (
+            {!comparisonMode ? (
               <>
                 <TouchableOpacity
                   onPress={() => setExportModalVisible(true)}
-                  style={styles.actionButton}
+                  style={styles.iconButton}
                 >
-                  <Text style={styles.actionText}>Export</Text>
+                  <Ionicons name="download-outline" size={20} color={colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleToggleComparison}
-                  style={[styles.actionButton, styles.compareButton]}
+                  style={styles.iconButton}
                 >
-                  <Text style={styles.actionText}>Compare</Text>
+                  <Ionicons name="git-compare-outline" size={20} color={colors.primary} />
                 </TouchableOpacity>
               </>
-            )}
-            {comparisonMode && (
+            ) : (
               <TouchableOpacity
                 onPress={handleToggleComparison}
-                style={[styles.actionButton, styles.cancelButton]}
+                style={styles.iconButton}
               >
-                <Text style={styles.actionText}>Cancel</Text>
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -300,62 +295,46 @@ const getStyles = (colors, typography, spacing) => StyleSheet.create({
     paddingBottom: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  headerLeft: {
-    flex: 1,
+    alignItems: 'center',
   },
   headerActions: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   title: {
     ...typography.h1,
   },
-  actionButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    minWidth: 80,
-    minHeight: 44,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  compareButton: {
-    backgroundColor: colors.primaryDark,
-  },
-  cancelButton: {
-    backgroundColor: colors.textSecondary,
-  },
-  actionText: {
-    ...typography.bodySmall,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
   comparisonBar: {
-    backgroundColor: colors.primaryDark,
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   comparisonText: {
-    ...typography.body,
+    ...typography.bodySmall,
     color: '#FFFFFF',
     fontWeight: '600',
   },
   compareNowButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.textPrimary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: '#FFFFFF',
     borderRadius: borderRadius.md,
   },
   compareNowText: {
     ...typography.bodySmall,
-    color: colors.primaryDark,
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: '700',
   },
   loadingContainer: {
     flex: 1,
@@ -367,65 +346,59 @@ const getStyles = (colors, typography, spacing) => StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   scanCard: {
-    marginBottom: spacing.md,
-    overflow: 'hidden',
-    padding: 0,
-  },
-  selectedCard: {
-    borderWidth: 3,
-    borderColor: colors.primary,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  scanContent: {
-    flex: 1,
-  },
-  cardImageContainer: {
-    width: '100%',
-    height: 140,
-    position: 'relative',
     backgroundColor: colors.surface,
-  },
-  cardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  cardImageOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
-  },
-  cardGradeBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-  },
-  cardCheckboxOverlay: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-  },
-  scanHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.md,
   },
-  checkboxContainer: {
+  selectedCard: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '08',
+  },
+  scanRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  thumbnailContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.sm,
+    overflow: 'hidden',
     marginRight: spacing.md,
   },
   thumbnail: {
-    width: 60,
-    height: 60,
-    borderRadius: borderRadius.md,
+    width: '100%',
+    height: '100%',
+  },
+  gradeCircle: {
     marginRight: spacing.md,
-    backgroundColor: colors.surface,
+  },
+  scanInfo: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  scanRight: {
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  brand: {
+    ...typography.body,
+    fontWeight: '600',
+  },
+  itemType: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  date: {
+    ...typography.caption,
+    color: colors.textTertiary,
   },
   checkbox: {
-    width: 24,
-    height: 24,
+    width: 22,
+    height: 22,
     borderWidth: 2,
     borderColor: colors.primary,
     borderRadius: 4,
@@ -435,43 +408,6 @@ const getStyles = (colors, typography, spacing) => StyleSheet.create({
   },
   checkboxSelected: {
     backgroundColor: colors.primary,
-  },
-  checkmark: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  deleteButton: {
-    backgroundColor: colors.error,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    borderRadius: borderRadius.sm,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  deleteText: {
-    color: '#FFFFFF',
-    ...typography.bodySmall,
-    fontWeight: '600',
-  },
-  scanInfo: {
-    flex: 1,
-  },
-  brand: {
-    ...typography.body,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
-  },
-  itemType: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  date: {
-    ...typography.caption,
-    color: colors.textTertiary,
   },
   emptyContainer: {
     flex: 1,

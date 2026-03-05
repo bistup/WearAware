@@ -36,13 +36,16 @@ router.get('/achievements', async (req, res) => {
     const achievements = result.rows.map(row => ({
       id: row.id,
       key: row.key,
+      name: row.title,
       title: row.title,
       description: row.description,
       icon: row.icon,
       category: row.category,
       threshold: row.threshold,
       points: row.points,
+      user_progress: row.user_progress,
       progress: row.user_progress,
+      is_unlocked: row.user_unlocked,
       unlocked: row.user_unlocked,
       unlockedAt: row.unlocked_at,
       sharedToFeed: row.shared_to_feed,
@@ -122,13 +125,13 @@ router.post('/achievements/check', async (req, res) => {
           if (eventType === 'gained_follower') increment = 1;
           break;
         case 'water_saver':
-          if (eventType === 'scan' && eventData?.waterSaved > 0) {
-            increment = Math.round(eventData.waterSaved);
+          if (eventType === 'scan' && Number(eventData?.waterSaved) > 0) {
+            increment = Math.round(Number(eventData.waterSaved));
           }
           break;
         case 'carbon_cutter':
-          if (eventType === 'scan' && eventData?.carbonSaved > 0) {
-            increment = Math.round(eventData.carbonSaved * 100) / 100;
+          if (eventType === 'scan' && Number(eventData?.carbonSaved) > 0) {
+            increment = Math.round(Number(eventData.carbonSaved));
           }
           break;
         case 'wishlist_5':
@@ -196,7 +199,7 @@ router.post('/achievements/:achievementId/share', async (req, res) => {
 
     // verify achievement is unlocked
     const ua = await pool.query(
-      `SELECT ua.*, a.title, a.icon, a.description
+      `SELECT ua.*, a.title, a.icon, a.description, a.category
        FROM user_achievements ua
        JOIN achievements a ON a.id = ua.achievement_id
        WHERE ua.user_id = $1 AND ua.achievement_id = $2 AND ua.unlocked = TRUE`,
@@ -208,12 +211,25 @@ router.post('/achievements/:achievementId/share', async (req, res) => {
     }
 
     // create a post for the achievement
-    const caption = `Achievement Unlocked: ${ua.rows[0].icon} ${ua.rows[0].title} - ${ua.rows[0].description}`;
+    const caption = `ACHIEVEMENT_SHARE|${ua.rows[0].title}|${ua.rows[0].description || ''}|${ua.rows[0].category || 'general'}`;
     await pool.query(
       `INSERT INTO scan_posts (user_id, caption, visibility)
        VALUES ($1, $2, 'public')`,
       [userId, caption]
     );
+
+    // Invalidate feed cache for user and followers so the shared post is visible immediately.
+    await cache.invalidateCached(cache.keys.feed(firebaseUid));
+    const followers = await pool.query(
+      `SELECT u.firebase_uid
+       FROM follows f
+       JOIN users u ON u.id = f.follower_id
+       WHERE f.following_id = $1`,
+      [userId]
+    );
+    for (const follower of followers.rows) {
+      await cache.invalidateCached(cache.keys.feed(follower.firebase_uid));
+    }
 
     // mark as shared
     await pool.query(
@@ -242,6 +258,7 @@ router.get('/challenges', async (req, res) => {
 
     const result = await pool.query(
       `SELECT c.*,
+              uc.id as user_challenge_id,
               COALESCE(uc.progress, 0) as user_progress,
               COALESCE(uc.completed, FALSE) as user_completed,
               uc.completed_at
@@ -257,13 +274,21 @@ router.get('/challenges', async (req, res) => {
       title: row.title,
       description: row.description,
       icon: row.icon,
+      challenge_type: row.goal_type,
       type: row.challenge_type,
       goalType: row.goal_type,
       goalValue: row.goal_value,
+      target_value: row.goal_value,
       points: row.points,
+      reward_points: row.points,
       startsAt: row.starts_at,
       endsAt: row.ends_at,
+      end_date: row.ends_at,
+      is_joined: Boolean(row.user_challenge_id),
+      user_challenge_id: row.user_challenge_id,
+      user_progress: row.user_progress,
       progress: row.user_progress,
+      is_completed: row.user_completed,
       completed: row.user_completed,
       completedAt: row.completed_at,
       progressPercent: Math.min(100, Math.round((row.user_progress / row.goal_value) * 100)),
@@ -341,7 +366,12 @@ router.post('/challenges/update-progress', async (req, res) => {
 
     const completed = [];
     for (const challenge of activeChallenges.rows) {
-      const newProgress = challenge.progress + (value || 1);
+      const increment = Math.max(0, Math.round(Number(value ?? 1)));
+      if (increment === 0) {
+        continue;
+      }
+
+      const newProgress = challenge.progress + increment;
       const isCompleted = newProgress >= challenge.goal_value;
 
       await pool.query(
@@ -387,22 +417,29 @@ router.get('/leaderboard', async (req, res) => {
     const userId = firebaseUid ? await getUserId(firebaseUid) : null;
 
     // try cache
-    const cacheKey = `leaderboard:${periodType}`;
+    const cacheKey = `leaderboard:v3:${periodType}`;
     const cached = await cache.getCached(cacheKey);
     if (cached) {
-      return res.json({ success: true, leaderboard: cached, cached: true });
+      const currentUserRank = firebaseUid
+        ? cached.find((entry) => (entry.firebase_uid || entry.firebaseUid) === firebaseUid) || null
+        : null;
+      return res.json({ success: true, leaderboard: cached, currentUserRank, period: periodType, cached: true });
     }
 
     let dateFilter;
+    let achievementDateFilter;
     switch (periodType) {
       case 'weekly':
         dateFilter = "s.created_at > NOW() - INTERVAL '7 days'";
+        achievementDateFilter = "AND ua.unlocked_at > NOW() - INTERVAL '7 days'";
         break;
       case 'monthly':
         dateFilter = "s.created_at > NOW() - INTERVAL '30 days'";
+        achievementDateFilter = "AND ua.unlocked_at > NOW() - INTERVAL '30 days'";
         break;
       default:
         dateFilter = '1=1'; // all time
+        achievementDateFilter = '';
     }
 
     const result = await pool.query(
@@ -414,9 +451,37 @@ router.get('/leaderboard', async (req, res) => {
         COUNT(s.id) as scan_count,
         ROUND(AVG(s.environmental_score)) as avg_score,
         COALESCE(SUM(
-          CASE WHEN a_unlocked.points IS NOT NULL THEN a_unlocked.points ELSE 0 END
-        ), 0) as achievement_points,
-        ROW_NUMBER() OVER (ORDER BY ROUND(AVG(s.environmental_score)) DESC, COUNT(s.id) DESC) as rank
+          CASE s.environmental_grade
+            WHEN 'A' THEN 10
+            WHEN 'B' THEN 8
+            WHEN 'C' THEN 6
+            WHEN 'D' THEN 4
+            ELSE 2
+          END
+        ), 0) as scan_points,
+        COALESCE(a_unlocked.points, 0) as achievement_points,
+        (COALESCE(SUM(
+          CASE s.environmental_grade
+            WHEN 'A' THEN 10
+            WHEN 'B' THEN 8
+            WHEN 'C' THEN 6
+            WHEN 'D' THEN 4
+            ELSE 2
+          END
+        ), 0) + COALESCE(a_unlocked.points, 0)) as total_score,
+        ROW_NUMBER() OVER (
+          ORDER BY (COALESCE(SUM(
+                    CASE s.environmental_grade
+                      WHEN 'A' THEN 10
+                      WHEN 'B' THEN 8
+                      WHEN 'C' THEN 6
+                      WHEN 'D' THEN 4
+                      ELSE 2
+                    END
+                  ), 0) + COALESCE(a_unlocked.points, 0)) DESC,
+                   COUNT(s.id) DESC,
+                   ROUND(AVG(s.environmental_score)) DESC
+        ) as rank
        FROM users u
        LEFT JOIN user_profiles up ON up.user_id = u.id
        JOIN scans s ON s.firebase_uid = u.firebase_uid AND ${dateFilter}
@@ -425,25 +490,41 @@ router.get('/leaderboard', async (req, res) => {
          FROM user_achievements ua
          JOIN achievements a ON a.id = ua.achievement_id
          WHERE ua.unlocked = TRUE
+           ${achievementDateFilter}
          GROUP BY ua.user_id
        ) a_unlocked ON a_unlocked.user_id = u.id
        GROUP BY u.id, u.firebase_uid, u.email, up.display_name, up.avatar_url, a_unlocked.points
        HAVING COUNT(s.id) > 0
-       ORDER BY avg_score DESC, scan_count DESC
+       ORDER BY total_score DESC, scan_count DESC
        LIMIT 50`
     );
 
     const leaderboard = result.rows.map(row => ({
       rank: parseInt(row.rank),
+      firebase_uid: row.firebase_uid,
       firebaseUid: row.firebase_uid,
       email: row.email,
+      display_name: row.display_name,
       displayName: row.display_name,
+      avatar_url: row.avatar_url,
       avatarUrl: row.avatar_url,
+      scan_count: parseInt(row.scan_count),
       scanCount: parseInt(row.scan_count),
+      total_scans: parseInt(row.scan_count),
+      avg_score: parseInt(row.avg_score),
       avgScore: parseInt(row.avg_score),
+      scan_points: parseInt(row.scan_points),
+      scanPoints: parseInt(row.scan_points),
+      achievement_points: parseInt(row.achievement_points),
       achievementPoints: parseInt(row.achievement_points),
+      total_score: parseInt(row.total_score),
+      totalScore: parseInt(row.total_score),
       isCurrentUser: userId ? row.firebase_uid === firebaseUid : false,
     }));
+
+    const currentUserRank = firebaseUid
+      ? leaderboard.find((entry) => entry.firebase_uid === firebaseUid) || null
+      : null;
 
     // cache for 5 minutes
     await cache.setCached(cacheKey, leaderboard, 300);
@@ -451,6 +532,7 @@ router.get('/leaderboard', async (req, res) => {
     res.json({
       success: true,
       leaderboard,
+      currentUserRank,
       period: periodType,
     });
   } catch (error) {
