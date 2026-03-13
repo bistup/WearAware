@@ -6,7 +6,7 @@
 // uses ionicons for proper icons
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,7 +28,7 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoSection}>
@@ -86,41 +86,80 @@ const HomeScreen = () => {
         {/* Explore Section */}
         <Text style={styles.sectionTitle}>Explore</Text>
         <View style={styles.exploreGrid}>
-          <TouchableOpacity
-            style={styles.exploreCard}
-            onPress={() => navigation.navigate('Challenges')}
-            accessibilityRole="button"
-            accessibilityLabel="Challenges"
-          >
-            <View style={styles.exploreIconBox}>
-              <Ionicons name="trophy-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.exploreLabel}>Challenges</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.exploreCard}
-            onPress={() => navigation.navigate('Leaderboard')}
-            accessibilityRole="button"
-            accessibilityLabel="Leaderboard"
-          >
-            <View style={styles.exploreIconBox}>
-              <Ionicons name="podium-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.exploreLabel}>Leaderboard</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.exploreCard}
-            onPress={() => navigation.navigate('Wishlist')}
-            accessibilityRole="button"
-            accessibilityLabel="Wishlist"
-          >
-            <View style={styles.exploreIconBox}>
-              <Ionicons name="heart-outline" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.exploreLabel}>Wishlist</Text>
-          </TouchableOpacity>
+          <View style={styles.exploreRow}>
+            <TouchableOpacity
+              style={styles.exploreCard}
+              onPress={() => navigation.navigate('Challenges')}
+              accessibilityRole="button"
+              accessibilityLabel="Challenges"
+            >
+              <View style={styles.exploreIconBox}>
+                <Ionicons name="trophy-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.exploreLabel}>Challenges</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.exploreCard}
+              onPress={() => navigation.navigate('Leaderboard')}
+              accessibilityRole="button"
+              accessibilityLabel="Leaderboard"
+            >
+              <View style={styles.exploreIconBox}>
+                <Ionicons name="podium-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.exploreLabel}>Leaderboard</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.exploreRow}>
+            <TouchableOpacity
+              style={styles.exploreCard}
+              onPress={() => navigation.navigate('Wishlist')}
+              accessibilityRole="button"
+              accessibilityLabel="Wishlist"
+            >
+              <View style={styles.exploreIconBox}>
+                <Ionicons name="heart-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.exploreLabel}>Wishlist</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.exploreCard}
+              onPress={() => navigation.navigate('CharityShops')}
+              accessibilityRole="button"
+              accessibilityLabel="Charity Shops"
+            >
+              <View style={styles.exploreIconBox}>
+                <Ionicons name="storefront-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.exploreLabel}>Charity Shops</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.exploreRow}>
+            <TouchableOpacity
+              style={styles.exploreCard}
+              onPress={() => navigation.navigate('Wardrobe')}
+              accessibilityRole="button"
+              accessibilityLabel="My Wardrobe"
+            >
+              <View style={styles.exploreIconBox}>
+                <Ionicons name="shirt-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.exploreLabel}>My Wardrobe</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.exploreCard}
+              onPress={() => navigation.navigate('Outfits')}
+              accessibilityRole="button"
+              accessibilityLabel="Outfits"
+            >
+              <View style={styles.exploreIconBox}>
+                <Ionicons name="layers-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.exploreLabel}>Outfits</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -132,6 +171,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentInner: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.lg,
@@ -247,6 +288,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   exploreGrid: {
+    gap: spacing.sm,
+  },
+  exploreRow: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
@@ -268,6 +312,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.sm,
+  },
+  exploreCardPlaceholder: {
+    flex: 1,
   },
   exploreLabel: {
     ...typography.bodySmall,

@@ -15,7 +15,7 @@ import CareIcon from '../../components/CareIcon';
 import ShareScanModal from '../../components/ShareScanModal';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, getGradeColor } from '../../theme/theme';
-import { deleteScan, saveScanToBackend, generateAiSummary, generateAiSummaryFromData, fetchVisualRecommendations } from '../../services/api';
+import { deleteScan, saveScanToBackend, generateAiSummary, generateAiSummaryFromData, fetchVisualRecommendations, addToWardrobe } from '../../services/api';
 import { createPost, checkAchievements, updateChallengeProgress } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -501,6 +501,32 @@ const ScanResultScreen = () => {
                 >
                   <Ionicons name="share-outline" size={16} color={colors.textPrimary} />
                   <Text style={styles.actionBtnText}>Share</Text>
+                </TouchableOpacity>
+              )}
+              {scanId && !isGuest && (
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={async () => {
+                    const result = await addToWardrobe({
+                      scanId,
+                      name: updatedScanData.brand ? `${updatedScanData.brand} ${updatedScanData.itemType || 'Item'}` : (updatedScanData.itemType || 'Scanned Item'),
+                      brand: updatedScanData.brand,
+                      itemType: updatedScanData.itemType,
+                      imageUrl: updatedScanData.imageUrl || updatedScanData.image_url,
+                      thumbnailUrl: updatedScanData.thumbnailUrl || updatedScanData.thumbnail_url,
+                      environmentalGrade: updatedScanData.grade,
+                      environmentalScore: updatedScanData.environmentalScore,
+                      fibers: updatedScanData.fibers,
+                    });
+                    if (result.success) {
+                      Alert.alert('Added', 'Item added to your wardrobe!');
+                    } else {
+                      Alert.alert('Note', result.error || 'Could not add to wardrobe');
+                    }
+                  }}
+                >
+                  <Ionicons name="shirt-outline" size={16} color={colors.textPrimary} />
+                  <Text style={styles.actionBtnText}>Wardrobe</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity

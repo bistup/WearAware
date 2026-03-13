@@ -17,6 +17,9 @@ const socialRouter = require('./routes/social');
 const alternativesRouter = require('./routes/alternatives');
 const gamificationRouter = require('./routes/gamification');
 const uploadsRouter = require('./routes/uploads');
+const charityShopsRouter = require('./routes/charityShops');
+const wardrobeRouter = require('./routes/wardrobe');
+const outfitsRouter = require('./routes/outfits');
 const path = require('path');
 const {
   optionalFirebaseAuth,
@@ -55,6 +58,9 @@ app.use('/api/social', optionalFirebaseAuth, rejectUidWithoutAuth, bindAuthUid, 
 app.use('/api/alternatives', requireFirebaseAuth, bindAuthUid, alternativesRouter);
 app.use('/api/gamification', requireFirebaseAuth, bindAuthUid, gamificationRouter);
 app.use('/api/uploads', requireFirebaseAuth, bindAuthUid, uploadsRouter);
+app.use('/api/charity-shops', requireFirebaseAuth, bindAuthUid, charityShopsRouter);
+app.use('/api/wardrobe', requireFirebaseAuth, bindAuthUid, wardrobeRouter);
+app.use('/api/outfits', requireFirebaseAuth, bindAuthUid, outfitsRouter);
 
 // health check endpoint to verify database connection
 app.get('/api/health', async (req, res) => {

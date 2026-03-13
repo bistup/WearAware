@@ -435,3 +435,96 @@ export const searchSecondHand = async (itemType, primaryFiber, imageUrl, gender)
     { results: [] }
   );
 };
+
+// ============================================================================
+// CHARITY SHOPS - find nearby charity/thrift shops via Google Places
+// ============================================================================
+
+export const fetchNearbyCharityShops = async (lat, lng, radius = 5000) => {
+  return apiFetch(
+    `${BACKEND_API_URL}/charity-shops/nearby?lat=${lat}&lng=${lng}&radius=${radius}`,
+    {},
+    { shops: [] }
+  );
+};
+
+// ============================================================================
+// WARDROBE - manage user's clothing wardrobe
+// ============================================================================
+
+export const fetchWardrobe = async (category) => {
+  const uid = getUid();
+  const params = `firebaseUid=${uid}${category && category !== 'All' ? `&category=${encodeURIComponent(category)}` : ''}`;
+  return apiFetch(`${BACKEND_API_URL}/wardrobe?${params}`, {}, { items: [] });
+};
+
+export const addToWardrobe = async (itemData) => {
+  return apiFetch(`${BACKEND_API_URL}/wardrobe`, {
+    method: 'POST',
+    body: JSON.stringify({ firebaseUid: getUid(), ...itemData }),
+  });
+};
+
+export const updateWardrobeItem = async (id, updates) => {
+  return apiFetch(`${BACKEND_API_URL}/wardrobe/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ firebaseUid: getUid(), ...updates }),
+  });
+};
+
+export const logWear = async (id) => {
+  return apiFetch(`${BACKEND_API_URL}/wardrobe/${id}/wear`, {
+    method: 'POST',
+    body: JSON.stringify({ firebaseUid: getUid() }),
+  });
+};
+
+export const removeFromWardrobe = async (id) => {
+  return apiFetch(`${BACKEND_API_URL}/wardrobe/${id}?firebaseUid=${getUid()}`, {
+    method: 'DELETE',
+  });
+};
+
+export const fetchWardrobeCategories = async () => {
+  return apiFetch(`${BACKEND_API_URL}/wardrobe/categories?firebaseUid=${getUid()}`, {}, { categories: [] });
+};
+
+export const importScansToWardrobe = async () => {
+  return apiFetch(`${BACKEND_API_URL}/wardrobe/import-scans`, {
+    method: 'POST',
+    body: JSON.stringify({ firebaseUid: getUid() }),
+  });
+};
+
+// ============================================================================
+// OUTFITS - create and manage outfits from wardrobe items
+// ============================================================================
+
+export const fetchOutfits = async (day) => {
+  const params = `firebaseUid=${getUid()}${day ? `&day=${encodeURIComponent(day)}` : ''}`;
+  return apiFetch(`${BACKEND_API_URL}/outfits?${params}`, {}, { outfits: [] });
+};
+
+export const fetchWeeklyOutfits = async () => {
+  return apiFetch(`${BACKEND_API_URL}/outfits/weekly?firebaseUid=${getUid()}`, {}, { weekly: {} });
+};
+
+export const createOutfit = async (data) => {
+  return apiFetch(`${BACKEND_API_URL}/outfits`, {
+    method: 'POST',
+    body: JSON.stringify({ firebaseUid: getUid(), ...data }),
+  });
+};
+
+export const updateOutfit = async (id, data) => {
+  return apiFetch(`${BACKEND_API_URL}/outfits/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ firebaseUid: getUid(), ...data }),
+  });
+};
+
+export const deleteOutfit = async (id) => {
+  return apiFetch(`${BACKEND_API_URL}/outfits/${id}?firebaseUid=${getUid()}`, {
+    method: 'DELETE',
+  });
+};

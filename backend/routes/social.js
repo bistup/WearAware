@@ -131,6 +131,42 @@ router.get('/profile/:firebaseUid', async (req, res) => {
       [userId, viewerUserId || 0]
     );
 
+    // get user's wardrobe for profile
+    const userWardrobe = await pool.query(
+      `SELECT id, name, brand, item_type, category, image_url, thumbnail_url,
+              environmental_grade, wear_count, is_favorite
+       FROM wardrobe_items WHERE user_id = $1
+       ORDER BY is_favorite DESC, updated_at DESC
+       LIMIT 12`,
+      [userId]
+    );
+
+    // get user's outfits for profile
+    const userOutfits = await pool.query(
+      `SELECT o.*,
+        COALESCE(json_agg(
+          json_build_object(
+            'id', oi.id,
+            'wardrobeItemId', wi.id,
+            'name', wi.name,
+            'brand', wi.brand,
+            'category', wi.category,
+            'imageUrl', wi.image_url,
+            'thumbnailUrl', wi.thumbnail_url,
+            'environmentalGrade', wi.environmental_grade,
+            'position', oi.position
+          ) ORDER BY oi.position
+        ) FILTER (WHERE oi.id IS NOT NULL), '[]') as items
+        FROM outfits o
+        LEFT JOIN outfit_items oi ON o.id = oi.outfit_id
+        LEFT JOIN wardrobe_items wi ON oi.wardrobe_item_id = wi.id
+        WHERE o.user_id = $1
+        GROUP BY o.id
+        ORDER BY o.updated_at DESC
+        LIMIT 10`,
+      [userId]
+    );
+
     const totalScans = parseInt(stats.rows[0]?.total_scans) || 0;
     const avgScore = parseInt(stats.rows[0]?.avg_score) || 0;
     const recentAvg = parseInt(stats.rows[0]?.recent_avg) || 0;
@@ -164,7 +200,26 @@ router.get('/profile/:firebaseUid', async (req, res) => {
         grade_distribution: gradeDistribution.rows,
         is_following: isFollowing,
       },
+      wardrobe: userWardrobe.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        brand: row.brand,
+        itemType: row.item_type,
+        category: row.category,
+        imageUrl: row.image_url,
+        thumbnailUrl: row.thumbnail_url,
+        environmentalGrade: row.environmental_grade,
+        wearCount: row.wear_count,
+        isFavorite: row.is_favorite,
+      })),
       posts: publicPosts.rows.map(formatPost),
+      outfits: userOutfits.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        dayOfWeek: row.day_of_week,
+        items: row.items || [],
+        createdAt: row.created_at,
+      })),
     });
   } catch (error) {
     console.error('Error fetching profile:', error);
@@ -781,6 +836,99 @@ router.delete('/comments/:commentId', async (req, res) => {
     res.json({ success: true, message: 'Comment deleted' });
   } catch (error) {
     console.error('Error deleting comment:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/social/wardrobe/:firebaseUid - get a user's wardrobe (public view)
+router.get('/wardrobe/:firebaseUid', async (req, res) => {
+  const { firebaseUid } = req.params;
+
+  try {
+    const userId = await getUserId(firebaseUid);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, name, brand, item_type, color, category, image_url, thumbnail_url,
+              environmental_grade, environmental_score, wear_count, is_favorite
+       FROM wardrobe_items WHERE user_id = $1
+       ORDER BY is_favorite DESC, updated_at DESC
+       LIMIT 30`,
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      items: result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        brand: row.brand,
+        itemType: row.item_type,
+        color: row.color,
+        category: row.category,
+        imageUrl: row.image_url,
+        thumbnailUrl: row.thumbnail_url,
+        environmentalGrade: row.environmental_grade,
+        wearCount: row.wear_count,
+        isFavorite: row.is_favorite,
+      })),
+      total: result.rows.length,
+    });
+  } catch (error) {
+    console.error('Error fetching user wardrobe:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/social/outfits/:firebaseUid - get a user's outfits (public view)
+router.get('/outfits/:firebaseUid', async (req, res) => {
+  const { firebaseUid } = req.params;
+
+  try {
+    const userId = await getUserId(firebaseUid);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const result = await pool.query(
+      `SELECT o.*,
+        COALESCE(json_agg(
+          json_build_object(
+            'id', oi.id,
+            'wardrobeItemId', wi.id,
+            'name', wi.name,
+            'brand', wi.brand,
+            'category', wi.category,
+            'imageUrl', wi.image_url,
+            'thumbnailUrl', wi.thumbnail_url,
+            'environmentalGrade', wi.environmental_grade,
+            'position', oi.position
+          ) ORDER BY oi.position
+        ) FILTER (WHERE oi.id IS NOT NULL), '[]') as items
+        FROM outfits o
+        LEFT JOIN outfit_items oi ON o.id = oi.outfit_id
+        LEFT JOIN wardrobe_items wi ON oi.wardrobe_item_id = wi.id
+        WHERE o.user_id = $1
+        GROUP BY o.id
+        ORDER BY o.updated_at DESC
+        LIMIT 20`,
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      outfits: result.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        dayOfWeek: row.day_of_week,
+        items: row.items || [],
+        createdAt: row.created_at,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching user outfits:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

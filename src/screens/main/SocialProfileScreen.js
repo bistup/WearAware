@@ -14,6 +14,7 @@ import {
   FlatList,
   Alert,
   Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -40,6 +41,8 @@ const SocialProfileScreen = () => {
 
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [outfits, setOutfits] = useState([]);
+  const [wardrobeItems, setWardrobeItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
@@ -56,6 +59,8 @@ const SocialProfileScreen = () => {
     if (result.success) {
       setProfile(result.profile);
       setPosts(result.posts || []);
+      setOutfits(result.outfits || []);
+      setWardrobeItems(result.wardrobe || []);
       setFollowing(result.profile.is_following);
     }
     setLoading(false);
@@ -255,6 +260,80 @@ const SocialProfileScreen = () => {
             </View>
           )}
         </Card>
+
+        {/* Wardrobe */}
+        {wardrobeItems.length > 0 && (
+          <Card style={styles.wardrobeCard}>
+            <View style={styles.wardrobeSectionHeader}>
+              <View style={styles.outfitsTitleRow}>
+                <Ionicons name="shirt-outline" size={18} color={colors.primary} />
+                <Text style={styles.sectionTitle}>Wardrobe</Text>
+              </View>
+              <Text style={styles.outfitsCount}>{wardrobeItems.length} items</Text>
+            </View>
+            <View style={styles.wardrobeGrid}>
+              {wardrobeItems.slice(0, 6).map((item) => {
+                const imageUri = item.thumbnailUrl || item.imageUrl;
+                return (
+                  <View key={item.id} style={styles.wardrobeThumb}>
+                    {imageUri ? (
+                      <Image source={{ uri: imageUri }} style={styles.wardrobeThumbImage} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.wardrobeThumbImage, styles.wardrobePlaceholder]}>
+                        <Ionicons name="shirt-outline" size={20} color={colors.textTertiary} />
+                      </View>
+                    )}
+                    {item.environmentalGrade && (
+                      <View style={[styles.wardrobeGrade, { backgroundColor: getGradeColor(item.environmentalGrade) }]}>
+                        <Text style={styles.wardrobeGradeText}>{item.environmentalGrade}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.wardrobeItemName} numberOfLines={1}>{item.name}</Text>
+                  </View>
+                );
+              })}
+            </View>
+            {wardrobeItems.length > 6 && (
+              <Text style={styles.wardrobeMore}>+{wardrobeItems.length - 6} more items</Text>
+            )}
+          </Card>
+        )}
+
+        {/* Outfits */}
+        {outfits.length > 0 && (
+          <Card style={styles.outfitsCard}>
+            <View style={styles.outfitsSectionHeader}>
+              <View style={styles.outfitsTitleRow}>
+                <Ionicons name="layers-outline" size={18} color={colors.primary} />
+                <Text style={styles.sectionTitle}>Outfits</Text>
+              </View>
+              <Text style={styles.outfitsCount}>{outfits.length}</Text>
+            </View>
+            {outfits.map(outfit => (
+              <View key={outfit.id} style={styles.outfitRow}>
+                <View style={styles.outfitInfo}>
+                  <Text style={styles.outfitName}>{outfit.name}</Text>
+                  {outfit.dayOfWeek && (
+                    <View style={styles.outfitDayBadge}>
+                      <Text style={styles.outfitDayText}>{outfit.dayOfWeek}</Text>
+                    </View>
+                  )}
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.outfitThumbnails}>
+                  {outfit.items.map((item, idx) => (
+                    <View key={idx} style={styles.outfitThumb}>
+                      {item.thumbnailUrl || item.imageUrl ? (
+                        <Image source={{ uri: item.thumbnailUrl || item.imageUrl }} style={styles.outfitThumbImage} />
+                      ) : (
+                        <Ionicons name="shirt-outline" size={16} color={colors.textTertiary} />
+                      )}
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ))}
+          </Card>
+        )}
 
         {/* Public Posts */}
         <Text style={styles.sectionTitle}>Public Scans</Text>
@@ -464,6 +543,121 @@ const styles = StyleSheet.create({
     width: 24,
     ...typography.caption,
     textAlign: 'right',
+  },
+  wardrobeCard: {
+    marginBottom: spacing.md,
+  },
+  wardrobeSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  wardrobeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  wardrobeThumb: {
+    width: (Dimensions.get('window').width - spacing.lg * 2 - spacing.md * 2 - 16) / 3,
+    alignItems: 'center',
+  },
+  wardrobeThumbImage: {
+    width: '100%',
+    aspectRatio: 0.85,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  wardrobePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  wardrobeGrade: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  wardrobeGradeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  wardrobeItemName: {
+    ...typography.caption,
+    fontWeight: '600',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  wardrobeMore: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  outfitsCard: {
+    marginBottom: spacing.md,
+  },
+  outfitsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  outfitsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  outfitsCount: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    fontWeight: '600',
+  },
+  outfitRow: {
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  outfitInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  outfitName: {
+    ...typography.body,
+    fontWeight: '600',
+  },
+  outfitDayBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primaryLight,
+  },
+  outfitDayText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  outfitThumbnails: {
+    flexDirection: 'row',
+  },
+  outfitThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.surfaceSecondary,
+    marginRight: spacing.xs,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outfitThumbImage: {
+    width: '100%',
+    height: '100%',
   },
   emptyCard: {
     alignItems: 'center',

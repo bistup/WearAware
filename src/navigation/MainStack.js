@@ -28,6 +28,13 @@ import WishlistScreen from '../screens/main/WishlistScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import ChallengesScreen from '../screens/main/ChallengesScreen';
 
+// charity shops
+import CharityShopsScreen from '../screens/main/CharityShopsScreen';
+
+// wardrobe & outfits
+import WardrobeScreen from '../screens/main/WardrobeScreen';
+import OutfitsScreen from '../screens/main/OutfitsScreen';
+
 const Stack = createNativeStackNavigator();
 
 const MainStack = () => {
@@ -61,6 +68,13 @@ const MainStack = () => {
       {/* Gamification */}
       <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
       <Stack.Screen name="Challenges" component={ChallengesScreen} />
+
+      {/* Charity Shops */}
+      <Stack.Screen name="CharityShops" component={CharityShopsScreen} />
+
+      {/* Wardrobe & Outfits */}
+      <Stack.Screen name="Wardrobe" component={WardrobeScreen} />
+      <Stack.Screen name="Outfits" component={OutfitsScreen} />
     </Stack.Navigator>
   );
 };
