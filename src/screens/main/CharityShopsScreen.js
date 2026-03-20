@@ -11,7 +11,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Platform,
   Linking,
   Dimensions,
@@ -23,11 +22,13 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme/theme';
 import { fetchNearbyCharityShops } from '../../services/api';
+import { useAlert } from '../../context/AlertContext';
 
 const { width } = Dimensions.get('window');
 const MAP_HEIGHT = 300;
 
 const CharityShopsScreen = () => {
+  const { showAlert } = useAlert();
   const navigation = useNavigation();
   const mapRef = useRef(null);
   const [location, setLocation] = useState(null);
@@ -77,7 +78,7 @@ const CharityShopsScreen = () => {
     if (result.success) {
       setShops(result.shops || []);
     } else {
-      Alert.alert('Error', result.error || 'Failed to find nearby shops');
+      showAlert('Error', result.error || 'Failed to find nearby shops');
     }
     setLoading(false);
   };

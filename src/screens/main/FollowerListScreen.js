@@ -122,8 +122,19 @@ const FollowerListScreen = () => {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
+              <Ionicons
+                name={isFollowers ? 'people-outline' : 'person-add-outline'}
+                size={48}
+                color={colors.textTertiary}
+                style={{ marginBottom: spacing.md }}
+              />
+              <Text style={styles.emptyTitle}>
                 {isFollowers ? 'No followers yet' : 'Not following anyone yet'}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {isFollowers
+                  ? 'When people follow this account, they\'ll appear here'
+                  : 'When this account follows someone, they\'ll appear here'}
               </Text>
             </View>
           }
@@ -221,10 +232,24 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     paddingTop: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+  },
+  emptyTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  emptySubtext: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   emptyText: {
     ...typography.body,
     color: colors.textSecondary,
+    textAlign: 'center',
   },
 });
 

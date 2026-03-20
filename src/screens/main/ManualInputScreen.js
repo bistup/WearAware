@@ -4,7 +4,7 @@
 // enter brand, item type, and fiber composition manually - has dropdowns for easier selection
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,10 +19,12 @@ import { uploadScanImages } from '../../services/imageUpload';
 import { calculateImpactScore } from '../../utils/impactCalculator';
 import { ITEM_TYPES } from '../../constants/constants';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 
 const ManualInputScreen = () => {
   const navigation = useNavigation();
   const { isGuest } = useAuth();
+  const { showAlert } = useAlert();
   const [brand, setBrand] = useState('');
   const [itemType, setItemType] = useState('');
   const [selectedGender, setSelectedGender] = useState(null); // 'mens' or 'womens'
@@ -80,7 +82,7 @@ const ManualInputScreen = () => {
         setGarmentImageUri(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
+      showAlert('Error', 'Failed to pick image');
       console.error('Image picker error:', error);
     }
   };
@@ -90,19 +92,19 @@ const ManualInputScreen = () => {
   const handleSubmit = async () => {
     // validation
     if (!brand.trim() || !itemType.trim()) {
-      Alert.alert('Error', 'Please enter brand and item type');
+      showAlert('Error', 'Please enter brand and item type');
       return;
     }
 
     const cleanedFibers = fibers.filter((f) => f.name.trim() && f.percentage);
     if (cleanedFibers.length === 0) {
-      Alert.alert('Error', 'Please add at least one fiber');
+      showAlert('Error', 'Please add at least one fiber');
       return;
     }
 
     const total = cleanedFibers.reduce((sum, f) => sum + parseFloat(f.percentage), 0);
     if (Math.abs(total - 100) > 0.1) {
-      Alert.alert('Validation Error', `Fiber percentages must total 100% (current: ${total.toFixed(1)}%)`);
+      showAlert('Validation Error', `Fiber percentages must total 100% (current: ${total.toFixed(1)}%)`);
       return;
     }
 
@@ -161,7 +163,7 @@ const ManualInputScreen = () => {
         scanId: result.scanId,
       });
     } else {
-      Alert.alert('Error', result.error || 'Failed to save data');
+      showAlert('Error', result.error || 'Failed to save data');
     }
   };
 

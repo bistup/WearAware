@@ -33,9 +33,8 @@ router.get('/profile/:firebaseUid', async (req, res) => {
 
     if (profile.rows.length === 0) {
       // auto-create profile
-      const safeFallbackName = profile.rows[0]?.email?.split('@')[0] || firebaseUid.substring(0, 8);
       const userRow = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
-      const fallbackName = userRow.rows[0]?.email?.split('@')[0] || safeFallbackName;
+      const fallbackName = userRow.rows[0]?.email?.split('@')[0] || firebaseUid.substring(0, 8);
       await pool.query(
         `INSERT INTO user_profiles (user_id, display_name)
          VALUES ($1, $2)

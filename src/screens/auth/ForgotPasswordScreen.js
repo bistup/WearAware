@@ -4,16 +4,18 @@
 // pretty straightforward
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../../theme/theme';
 
 const ForgotPasswordScreen = () => {
+  const { showAlert } = useAlert();
   const navigation = useNavigation();
   const { resetPassword } = useAuth();
   const [email, setEmail] = useState('');
@@ -22,7 +24,7 @@ const ForgotPasswordScreen = () => {
   // send password reset email
   const handleResetPassword = async () => {
     if (!email) {
-      Alert.alert('Error', 'Please enter your email address');
+      showAlert('Error', 'Please enter your email address');
       return;
     }
 
@@ -31,13 +33,13 @@ const ForgotPasswordScreen = () => {
     setLoading(false);
 
     if (result.success) {
-      Alert.alert(
+      showAlert(
         'Success',
         'Password reset email sent. Check your inbox.',
         [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
       );
     } else {
-      Alert.alert('Error', result.error);
+      showAlert('Error', result.error);
     }
   };
 

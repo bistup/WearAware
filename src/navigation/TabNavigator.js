@@ -17,6 +17,7 @@ import HomeScreen from '../screens/main/HomeScreen';
 import CameraScreen from '../screens/main/CameraScreen';
 import HistoryScreen from '../screens/main/HistoryScreen';
 import FeedScreen from '../screens/main/FeedScreen';
+import MarketplaceScreen from '../screens/main/MarketplaceScreen';
 import ProfileScreen from '../screens/auth/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -26,6 +27,7 @@ const TAB_ICONS = {
   Camera: { focused: 'scan', unfocused: 'scan-outline' },
   History: { focused: 'time', unfocused: 'time-outline' },
   Feed: { focused: 'people', unfocused: 'people-outline' },
+  Marketplace: { focused: 'storefront', unfocused: 'storefront-outline' },
   Profile: { focused: 'person', unfocused: 'person-outline' },
 };
 
@@ -44,7 +46,7 @@ const TabNavigator = () => {
         tabBarIcon: ({ color, focused, size }) => {
           const icons = TAB_ICONS[route.name];
           const iconName = focused ? icons.focused : icons.unfocused;
-          return <Ionicons name={iconName} size={24} color={color} />;
+          return <Ionicons name={iconName} size={22} color={color} />;
         },
         tabBarStyle: {
           backgroundColor: colors.surface,
@@ -57,12 +59,13 @@ const TabNavigator = () => {
           shadowOpacity: 0,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '600',
-          marginTop: 2,
+          marginTop: 1,
         },
         tabBarItemStyle: {
-          minHeight: 48,
+          minHeight: 44,
+          paddingHorizontal: 0,
         },
       })}
     >
@@ -94,8 +97,16 @@ const TabNavigator = () => {
         name="Feed"
         component={FeedScreen}
         options={{
-          tabBarLabel: 'Community',
+          tabBarLabel: 'Feed',
           tabBarAccessibilityLabel: 'Community feed',
+        }}
+      />
+      <Tab.Screen
+        name="Marketplace"
+        component={MarketplaceScreen}
+        options={{
+          tabBarLabel: 'Market',
+          tabBarAccessibilityLabel: 'Marketplace',
         }}
       />
       <Tab.Screen

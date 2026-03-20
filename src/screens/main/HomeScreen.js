@@ -5,8 +5,10 @@
 // quick actions, sustainability tip, community section
 // uses ionicons for proper icons
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { fetchUnreadCount } from '../../services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +17,17 @@ import { colors, typography, spacing, borderRadius, shadows } from '../../theme/
 
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadUnread = async () => {
+        const result = await fetchUnreadCount();
+        if (result.success) setUnreadCount(parseInt(result.count) || 0);
+      };
+      loadUnread();
+    }, [])
+  );
 
   const sustainabilityTips = [
     "Natural fibers like cotton and linen are biodegradable",
@@ -40,6 +53,18 @@ const HomeScreen = () => {
               <Text style={styles.appTagline}>Sustainable Scan Assistant</Text>
             </View>
           </View>
+          <TouchableOpacity
+            style={styles.messagesBtn}
+            onPress={() => navigation.navigate('Messages')}
+            accessibilityLabel="Messages"
+          >
+            <Ionicons name="chatbubbles-outline" size={24} color={colors.textPrimary} />
+            {unreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Quick Actions */}
@@ -180,9 +205,35 @@ const styles = StyleSheet.create({
   // header
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.lg,
+  },
+  messagesBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: colors.error,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  unreadBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
   },
   logoSection: {
     flexDirection: 'row',

@@ -4,10 +4,11 @@
 // users can remove items or visit external shops
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/Card';
 import { colors, typography, spacing, borderRadius, getGradeColor } from '../../theme/theme';
@@ -16,6 +17,7 @@ import { fetchWishlist, removeFromWishlist } from '../../services/api';
 const WishlistScreen = () => {
   const navigation = useNavigation();
   const { isGuest } = useAuth();
+  const { showAlert } = useAlert();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ const WishlistScreen = () => {
   };
 
   const handleRemove = (wishlistId, productName) => {
-    Alert.alert(
+    showAlert(
       'Remove from Wishlist',
       `Remove "${productName}" from your wishlist?`,
       [

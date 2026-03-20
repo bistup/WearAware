@@ -11,7 +11,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Image,
   ScrollView,
   Dimensions,
@@ -20,7 +19,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows, getGradeColor } from '../../theme/theme';
-import { fetchWardrobe, removeFromWardrobe, logWear, updateWardrobeItem, importScansToWardrobe } from '../../services/api';
+import { fetchWardrobe, removeFromWardrobe, logWear, updateWardrobeItem, importScansToWardrobe, listWardrobeItem } from '../../services/api';
+import { useAlert } from '../../context/AlertContext';
 
 const { width } = Dimensions.get('window');
 const CARD_GAP = 10;
@@ -40,6 +40,7 @@ const CATEGORY_ICONS = {
 };
 
 const WardrobeScreen = () => {
+  const { showAlert } = useAlert();
   const navigation = useNavigation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,13 +71,13 @@ const WardrobeScreen = () => {
     const result = await importScansToWardrobe();
     if (result.success) {
       if (result.imported > 0) {
-        Alert.alert('Imported', `Added ${result.imported} scan${result.imported > 1 ? 's' : ''} to your wardrobe`);
+        showAlert('Imported', `Added ${result.imported} scan${result.imported > 1 ? 's' : ''} to your wardrobe`);
         loadWardrobe(activeCategory);
       } else {
-        Alert.alert('Up to date', 'All your scans are already in your wardrobe');
+        showAlert('Up to date', 'All your scans are already in your wardrobe');
       }
     } else {
-      Alert.alert('Error', result.error || 'Failed to import scans');
+      showAlert('Error', result.error || 'Failed to import scans');
     }
   };
 
@@ -99,7 +100,7 @@ const WardrobeScreen = () => {
   };
 
   const handleRemove = (item) => {
-    Alert.alert(
+    showAlert(
       'Remove Item',
       `Remove "${item.name}" from your wardrobe?`,
       [
@@ -112,7 +113,7 @@ const WardrobeScreen = () => {
             if (result.success) {
               setItems(prev => prev.filter(i => i.id !== item.id));
             } else {
-              Alert.alert('Error', result.error || 'Failed to remove item');
+              showAlert('Error', result.error || 'Failed to remove item');
             }
           },
         },
@@ -135,12 +136,45 @@ const WardrobeScreen = () => {
           }
         }}
         onLongPress={() => {
-          Alert.alert(
+          const isListed = !!item.availableFor;
+          showAlert(
             item.name,
             null,
             [
               { text: 'Wore it', onPress: () => handleLogWear(item) },
               { text: item.isFavorite ? 'Unfavorite' : 'Favorite', onPress: () => handleToggleFavorite(item) },
+              {
+                text: isListed ? 'Remove from Market' : 'List on Market',
+                onPress: () => {
+                  if (isListed) {
+                    listWardrobeItem(item.id, null).then(r => {
+                      if (r.success) setItems(prev => prev.map(i => i.id === item.id ? { ...i, availableFor: null } : i));
+                    });
+                  } else {
+                    showAlert('List on Marketplace', 'How would you like to list this item?', [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Give Away Free',
+                        onPress: () => listWardrobeItem(item.id, 'free').then(r => {
+                          if (r.success) {
+                            setItems(prev => prev.map(i => i.id === item.id ? { ...i, availableFor: 'free' } : i));
+                            showAlert('Listed!', 'Item is now listed as free on the Marketplace.');
+                          }
+                        }),
+                      },
+                      {
+                        text: 'Offer for Trade',
+                        onPress: () => listWardrobeItem(item.id, 'trade').then(r => {
+                          if (r.success) {
+                            setItems(prev => prev.map(i => i.id === item.id ? { ...i, availableFor: 'trade' } : i));
+                            showAlert('Listed!', 'Item is now listed for trade on the Marketplace.');
+                          }
+                        }),
+                      },
+                    ]);
+                  }
+                },
+              },
               { text: 'Remove', style: 'destructive', onPress: () => handleRemove(item) },
               { text: 'Cancel', style: 'cancel' },
             ]

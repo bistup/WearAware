@@ -35,6 +35,14 @@ import CharityShopsScreen from '../screens/main/CharityShopsScreen';
 import WardrobeScreen from '../screens/main/WardrobeScreen';
 import OutfitsScreen from '../screens/main/OutfitsScreen';
 
+// marketplace
+import MarketplaceScreen from '../screens/main/MarketplaceScreen';
+
+// messaging & trades
+import MessagesScreen from '../screens/main/MessagesScreen';
+import ChatScreen from '../screens/main/ChatScreen';
+import TradeScreen from '../screens/main/TradeScreen';
+
 const Stack = createNativeStackNavigator();
 
 const MainStack = () => {
@@ -75,6 +83,14 @@ const MainStack = () => {
       {/* Wardrobe & Outfits */}
       <Stack.Screen name="Wardrobe" component={WardrobeScreen} />
       <Stack.Screen name="Outfits" component={OutfitsScreen} />
+
+      {/* Marketplace */}
+      <Stack.Screen name="MarketplaceScreen" component={MarketplaceScreen} />
+
+      {/* Messaging & Trades */}
+      <Stack.Screen name="Messages" component={MessagesScreen} />
+      <Stack.Screen name="Chat" component={ChatScreen} />
+      <Stack.Screen name="Trade" component={TradeScreen} />
     </Stack.Navigator>
   );
 };

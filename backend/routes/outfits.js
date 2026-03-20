@@ -211,11 +211,11 @@ router.put('/:id', async (req, res) => {
     await pool.query(
       `UPDATE outfits SET
         name = COALESCE($3, name),
-        day_of_week = $4,
+        day_of_week = CASE WHEN $4::text IS NULL THEN day_of_week ELSE $4::text END,
         notes = COALESCE($5, notes),
         updated_at = NOW()
        WHERE id = $1 AND user_id = $2`,
-      [id, userId, name, dayOfWeek !== undefined ? dayOfWeek : undefined, notes]
+      [id, userId, name || null, dayOfWeek !== undefined ? dayOfWeek : null, notes || null]
     );
 
     // replace items if provided

@@ -8,6 +8,10 @@ const router = express.Router();
 const pool = require('../database/db');
 const { getUserId } = require('../database/db');
 
+// ensure available_for column exists (idempotent migration)
+pool.query(`ALTER TABLE wardrobe_items ADD COLUMN IF NOT EXISTS available_for VARCHAR(10)`)
+  .catch(err => console.error('Migration error (available_for):', err));
+
 // GET /api/wardrobe - get all wardrobe items for current user
 router.get('/', async (req, res) => {
   const { firebaseUid, category } = req.query;
@@ -58,7 +62,7 @@ router.post('/', async (req, res) => {
         [userId, scanId]
       );
       if (existing.rows.length > 0) {
-        return res.status(409).json({ success: false, error: 'This item is already in your wardrobe' });
+        return res.status(409).json({ success: false, alreadyExists: true, item: formatItem(existing.rows[0]), error: 'This item is already in your wardrobe' });
       }
     }
 
@@ -75,6 +79,80 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error adding to wardrobe:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/wardrobe/marketplace - all listed items from other users
+router.get('/marketplace', async (req, res) => {
+  const { firebaseUid, filter } = req.query;
+
+  try {
+    const userId = firebaseUid ? await getUserId(firebaseUid) : null;
+
+    let query = `
+      SELECT wi.*, up.display_name, up.avatar_url, u.firebase_uid AS owner_firebase_uid
+      FROM wardrobe_items wi
+      JOIN users u ON wi.user_id = u.id
+      LEFT JOIN user_profiles up ON wi.user_id = up.user_id
+      WHERE wi.available_for IS NOT NULL
+    `;
+    const params = [];
+
+    if (userId) {
+      params.push(userId);
+      query += ` AND wi.user_id != $${params.length}`;
+    }
+
+    if (filter === 'free') {
+      query += ` AND wi.available_for IN ('free', 'both')`;
+    } else if (filter === 'trade') {
+      query += ` AND wi.available_for IN ('trade', 'both')`;
+    }
+
+    query += ` ORDER BY wi.updated_at DESC LIMIT 50`;
+
+    const result = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      items: result.rows.map(row => ({
+        ...formatItem(row),
+        ownerName: row.display_name || 'User',
+        ownerAvatarUrl: row.avatar_url,
+        ownerFirebaseUid: row.owner_firebase_uid,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching marketplace:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PUT /api/wardrobe/:id/list - list or unlist an item on the marketplace
+router.put('/:id/list', async (req, res) => {
+  const { id } = req.params;
+  const { firebaseUid, availableFor } = req.body; // 'free', 'trade', 'both', or null to unlist
+
+  try {
+    const userId = await getUserId(firebaseUid);
+    if (!userId) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const result = await pool.query(
+      `UPDATE wardrobe_items SET available_for = $3, updated_at = NOW()
+       WHERE id = $1 AND user_id = $2 RETURNING *`,
+      [id, userId, availableFor || null]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Item not found' });
+    }
+
+    res.json({ success: true, item: formatItem(result.rows[0]) });
+  } catch (error) {
+    console.error('Error listing item:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -255,6 +333,7 @@ environmentalGrade: row.environmental_grade,
     isFavorite: row.is_favorite,
     wearCount: row.wear_count,
     lastWorn: row.last_worn,
+    availableFor: row.available_for,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

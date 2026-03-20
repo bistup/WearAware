@@ -552,9 +552,9 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// ============================================================================
+// 
 // VISUAL SIMILARITY ENDPOINTS
-// ============================================================================
+// 
 
 // create visual scan (scans full garment image for style matching)
 router.post('/visual-scan', async (req, res) => {

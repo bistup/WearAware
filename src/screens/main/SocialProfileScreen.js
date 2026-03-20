@@ -12,13 +12,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   FlatList,
-  Alert,
   Image,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import GradeIndicator from '../../components/GradeIndicator';
@@ -30,12 +30,14 @@ import {
   followUser,
   unfollowUser,
   toggleLike,
+  startConversation,
 } from '../../services/api';
 
 const SocialProfileScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const targetUid = route.params?.firebaseUid || user?.uid;
   const isOwnProfile = targetUid === user?.uid;
 
@@ -46,6 +48,7 @@ const SocialProfileScreen = () => {
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [messagingLoading, setMessagingLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -179,15 +182,44 @@ const SocialProfileScreen = () => {
             </View>
           </View>
 
-          {/* Follow/Edit Button */}
+          {/* Follow/Message Buttons */}
           {!isOwnProfile && (
-            <Button
-              title={followLoading ? 'Loading...' : following ? 'Unfollow' : 'Follow'}
-              onPress={handleFollow}
-              variant={following ? 'secondary' : 'primary'}
-              loading={followLoading}
-              style={styles.followButton}
-            />
+            <View style={styles.profileActions}>
+              <Button
+                title={followLoading ? 'Loading...' : following ? 'Unfollow' : 'Follow'}
+                onPress={handleFollow}
+                variant={following ? 'secondary' : 'primary'}
+                loading={followLoading}
+                style={styles.followButton}
+              />
+              <TouchableOpacity
+                style={[styles.messageBtn, messagingLoading && styles.messageBtnLoading]}
+                disabled={messagingLoading}
+                onPress={async () => {
+                  setMessagingLoading(true);
+                  const result = await startConversation(targetUid);
+                  setMessagingLoading(false);
+                  if (result.success) {
+                    navigation.navigate('Chat', {
+                      conversationId: result.conversationId,
+                      otherUserName: displayName,
+                      otherFirebaseUid: targetUid,
+                      otherAvatarUrl: profile.avatar_url,
+                    });
+                  } else {
+                    showAlert('Error', 'Could not open chat. Please try again.');
+                  }
+                }}
+              >
+                {messagingLoading
+                  ? <ActivityIndicator size="small" color={colors.primary} />
+                  : <>
+                      <Ionicons name="chatbubble-outline" size={16} color={colors.primary} />
+                      <Text style={styles.messageBtnText}>Message</Text>
+                    </>
+                }
+              </TouchableOpacity>
+            </View>
           )}
           {isOwnProfile && (
             <Button
@@ -275,7 +307,15 @@ const SocialProfileScreen = () => {
               {wardrobeItems.slice(0, 6).map((item) => {
                 const imageUri = item.thumbnailUrl || item.imageUrl;
                 return (
-                  <View key={item.id} style={styles.wardrobeThumb}>
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.wardrobeThumb}
+                    onPress={() => navigation.navigate('Trade', {
+                      otherFirebaseUid: targetUid,
+                      otherUserName: displayName,
+                    })}
+                    activeOpacity={0.75}
+                  >
                     {imageUri ? (
                       <Image source={{ uri: imageUri }} style={styles.wardrobeThumbImage} resizeMode="cover" />
                     ) : (
@@ -288,8 +328,11 @@ const SocialProfileScreen = () => {
                         <Text style={styles.wardrobeGradeText}>{item.environmentalGrade}</Text>
                       </View>
                     )}
+                    <View style={styles.tradeOverlay}>
+                      <Ionicons name="swap-horizontal" size={12} color="#fff" />
+                    </View>
                     <Text style={styles.wardrobeItemName} numberOfLines={1}>{item.name}</Text>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -461,9 +504,35 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  followButton: {
+  profileActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     width: '100%',
-    alignSelf: 'center',
+    gap: spacing.sm,
+  },
+  followButton: {
+    flex: 1,
+  },
+  messageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    height: 44,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.primaryLight,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    minWidth: 100,
+  },
+  messageBtnLoading: {
+    opacity: 0.6,
+  },
+  messageBtnText: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+    color: colors.primary,
   },
   statsCard: {
     marginBottom: spacing.md,
@@ -590,6 +659,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
     textAlign: 'center',
+  },
+  tradeOverlay: {
+    position: 'absolute',
+    bottom: 24,
+    right: 4,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   wardrobeMore: {
     ...typography.caption,

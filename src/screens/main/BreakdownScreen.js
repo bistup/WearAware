@@ -56,10 +56,10 @@ const BreakdownScreen = () => {
           </View>
         </Card>
 
-        {(water_usage_liters || carbon_footprint_kg) && (
+        {!!(water_usage_liters || carbon_footprint_kg) && (
           <Card style={styles.impactCard}>
             <Text style={styles.sectionTitle}>Total Environmental Impact</Text>
-            {item_weight_grams && (
+            {item_weight_grams > 0 && (
               <ImpactMetric
                 label="Garment Weight"
                 value={item_weight_grams}

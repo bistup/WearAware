@@ -4,10 +4,11 @@
 // shows active challenges, achievements progress, and unlocked badges
 
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/Card';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
@@ -16,6 +17,7 @@ import { fetchAchievements, fetchChallenges, joinChallenge, shareAchievement } f
 const ChallengesScreen = () => {
   const navigation = useNavigation();
   const { isGuest } = useAuth();
+  const { showAlert } = useAlert();
 
   const [activeTab, setActiveTab] = useState('challenges');
   const [challenges, setChallenges] = useState([]);
@@ -73,19 +75,19 @@ const ChallengesScreen = () => {
   const handleJoinChallenge = async (challengeId) => {
     const result = await joinChallenge(challengeId);
     if (result.success) {
-      Alert.alert('Joined!', 'Challenge accepted! Start scanning to make progress.');
+      showAlert('Joined!', 'Challenge accepted! Start scanning to make progress.');
       loadData();
     } else {
-      Alert.alert('Error', result.error || 'Failed to join challenge');
+      showAlert('Error', result.error || 'Failed to join challenge');
     }
   };
 
   const handleShareAchievement = async (achievementId) => {
     const result = await shareAchievement(achievementId);
     if (result.success) {
-      Alert.alert('Shared!', 'Your achievement has been posted to the community feed.');
+      showAlert('Shared!', 'Your achievement has been posted to the community feed.');
     } else {
-      Alert.alert('Error', result.error || 'Failed to share achievement');
+      showAlert('Error', result.error || 'Failed to share achievement');
     }
   };
 

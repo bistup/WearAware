@@ -4,7 +4,7 @@
 // can change brand, item type, and fiber percentages
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Button from '../../components/Button';
@@ -12,8 +12,10 @@ import Input from '../../components/Input';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../../theme/theme';
 import { updateScan } from '../../services/api';
+import { useAlert } from '../../context/AlertContext';
 
 const EditScanScreen = () => {
+  const { showAlert } = useAlert();
   const navigation = useNavigation();
   const route = useRoute();
   const { scanData, scanId } = route.params || {};
@@ -44,7 +46,7 @@ const EditScanScreen = () => {
     // validate percentages
     const total = fibers.reduce((sum, f) => sum + (parseFloat(f.percentage) || 0), 0);
     if (total !== 100) {
-      Alert.alert('Validation Error', 'Fiber percentages must total 100%');
+      showAlert('Validation Error', 'Fiber percentages must total 100%');
       return;
     }
 
@@ -62,7 +64,7 @@ const EditScanScreen = () => {
     setLoading(false);
 
     if (result.success) {
-      Alert.alert('Success', 'Scan updated successfully', [
+      showAlert('Success', 'Scan updated successfully', [
         { 
           text: 'OK', 
           onPress: () => navigation.navigate('ScanResult', { 
@@ -72,7 +74,7 @@ const EditScanScreen = () => {
         },
       ]);
     } else {
-      Alert.alert('Error', result.error || 'Failed to update scan');
+      showAlert('Error', result.error || 'Failed to update scan');
     }
   };
 

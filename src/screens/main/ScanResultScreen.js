@@ -5,7 +5,7 @@
 // always shows alternatives, AI summary via Ollama, care instructions tab
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Card from '../../components/Card';
@@ -15,14 +15,16 @@ import CareIcon from '../../components/CareIcon';
 import ShareScanModal from '../../components/ShareScanModal';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, getGradeColor } from '../../theme/theme';
-import { deleteScan, saveScanToBackend, generateAiSummary, generateAiSummaryFromData, fetchVisualRecommendations, addToWardrobe } from '../../services/api';
+import { deleteScan, saveScanToBackend, generateAiSummary, generateAiSummaryFromData, fetchVisualRecommendations, addToWardrobe, listWardrobeItem } from '../../services/api';
 import { createPost, checkAchievements, updateChallengeProgress } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 
 const ScanResultScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { user, isGuest } = useAuth();
+  const { showAlert } = useAlert();
   const { scanData, scanId } = route.params || {};
 
   const isVisualScan = scanData?.scanType === 'visual' || scanData?.scan_type === 'visual';
@@ -144,7 +146,7 @@ const ScanResultScreen = () => {
 
   const handleShareScan = async ({ caption, isPublic }) => {
     if (isGuest) {
-      Alert.alert('Sign In Required', 'Create an account to share scans with the community.');
+      showAlert('Sign In Required', 'Create an account to share scans with the community.');
       return;
     }
     try {
@@ -156,18 +158,18 @@ const ScanResultScreen = () => {
       if (result.success) {
         setShowShareModal(false);
         await checkAchievements('share', {});
-        Alert.alert('Shared!', 'Your scan has been posted to the community feed.');
+        showAlert('Shared!', 'Your scan has been posted to the community feed.');
       } else {
-        Alert.alert('Error', result.error || 'Failed to share scan.');
+        showAlert('Error', result.error || 'Failed to share scan.');
       }
     } catch (err) {
       console.error('Share failed:', err);
-      Alert.alert('Error', 'Failed to share scan.');
+      showAlert('Error', 'Failed to share scan.');
     }
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    showAlert(
       'Delete Scan',
       'Are you sure you want to delete this scan?',
       [
@@ -181,7 +183,7 @@ const ScanResultScreen = () => {
               if (result.success) {
                 navigation.navigate('History');
               } else {
-                Alert.alert('Error', result.error || 'Failed to delete scan');
+                showAlert('Error', result.error || 'Failed to delete scan');
               }
             } else {
               navigation.goBack();
@@ -492,14 +494,14 @@ const ScanResultScreen = () => {
               </Card>
             )}
 
-            {/* Action Buttons - compact row */}
+            {/* Action Buttons - icon + label stacked, equal-width columns */}
             <View style={styles.actionsRow}>
               {scanId && !isGuest && (
                 <TouchableOpacity
                   style={styles.actionBtn}
                   onPress={() => setShowShareModal(true)}
                 >
-                  <Ionicons name="share-outline" size={16} color={colors.textPrimary} />
+                  <Ionicons name="share-outline" size={22} color={colors.textPrimary} />
                   <Text style={styles.actionBtnText}>Share</Text>
                 </TouchableOpacity>
               )}
@@ -515,32 +517,95 @@ const ScanResultScreen = () => {
                       imageUrl: updatedScanData.imageUrl || updatedScanData.image_url,
                       thumbnailUrl: updatedScanData.thumbnailUrl || updatedScanData.thumbnail_url,
                       environmentalGrade: updatedScanData.grade,
-                      environmentalScore: updatedScanData.environmentalScore,
+                      environmentalScore: updatedScanData.score || updatedScanData.environmentalScore,
                       fibers: updatedScanData.fibers,
                     });
                     if (result.success) {
-                      Alert.alert('Added', 'Item added to your wardrobe!');
+                      showAlert('Added', 'Item added to your wardrobe!');
                     } else {
-                      Alert.alert('Note', result.error || 'Could not add to wardrobe');
+                      showAlert('Note', result.error || 'Could not add to wardrobe');
                     }
                   }}
                 >
-                  <Ionicons name="shirt-outline" size={16} color={colors.textPrimary} />
+                  <Ionicons name="shirt-outline" size={22} color={colors.textPrimary} />
                   <Text style={styles.actionBtnText}>Wardrobe</Text>
+                </TouchableOpacity>
+              )}
+              {scanId && !isGuest && (
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() => {
+                    showAlert(
+                      'List on Marketplace',
+                      'How would you like to list this item?',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Give Away Free',
+                          onPress: async () => {
+                            const wardrobeResult = await addToWardrobe({
+                              scanId,
+                              name: updatedScanData.brand ? `${updatedScanData.brand} ${updatedScanData.itemType || 'Item'}` : (updatedScanData.itemType || 'Scanned Item'),
+                              brand: updatedScanData.brand,
+                              itemType: updatedScanData.itemType,
+                              imageUrl: updatedScanData.imageUrl || updatedScanData.image_url,
+                              thumbnailUrl: updatedScanData.thumbnailUrl || updatedScanData.thumbnail_url,
+                              environmentalGrade: updatedScanData.grade,
+                              environmentalScore: updatedScanData.score || updatedScanData.environmentalScore,
+                              fibers: updatedScanData.fibers,
+                            });
+                            const itemId = wardrobeResult.item?.id;
+                            if (itemId) {
+                              await listWardrobeItem(itemId, 'free');
+                              showAlert('Listed!', 'Item is now listed as free on the Marketplace.');
+                            } else {
+                              showAlert('Error', 'Could not list item.');
+                            }
+                          },
+                        },
+                        {
+                          text: 'Offer for Trade',
+                          onPress: async () => {
+                            const wardrobeResult = await addToWardrobe({
+                              scanId,
+                              name: updatedScanData.brand ? `${updatedScanData.brand} ${updatedScanData.itemType || 'Item'}` : (updatedScanData.itemType || 'Scanned Item'),
+                              brand: updatedScanData.brand,
+                              itemType: updatedScanData.itemType,
+                              imageUrl: updatedScanData.imageUrl || updatedScanData.image_url,
+                              thumbnailUrl: updatedScanData.thumbnailUrl || updatedScanData.thumbnail_url,
+                              environmentalGrade: updatedScanData.grade,
+                              environmentalScore: updatedScanData.score || updatedScanData.environmentalScore,
+                              fibers: updatedScanData.fibers,
+                            });
+                            const itemId = wardrobeResult.item?.id;
+                            if (itemId) {
+                              await listWardrobeItem(itemId, 'trade');
+                              showAlert('Listed!', 'Item is now listed for trade on the Marketplace.');
+                            } else {
+                              showAlert('Error', 'Could not list item.');
+                            }
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Ionicons name="storefront-outline" size={22} color={colors.textPrimary} />
+                  <Text style={styles.actionBtnText}>Market</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
                 style={styles.actionBtn}
                 onPress={() => navigation.navigate('EditScan', { scanData: updatedScanData, scanId })}
               >
-                <Ionicons name="create-outline" size={16} color={colors.textPrimary} />
+                <Ionicons name="create-outline" size={22} color={colors.textPrimary} />
                 <Text style={styles.actionBtnText}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionBtn}
                 onPress={() => navigation.navigate('Breakdown', { scanData: updatedScanData, scanId })}
               >
-                <Ionicons name="analytics-outline" size={16} color={colors.textPrimary} />
+                <Ionicons name="analytics-outline" size={22} color={colors.textPrimary} />
                 <Text style={styles.actionBtnText}>Details</Text>
               </TouchableOpacity>
               {scanId && (
@@ -548,7 +613,7 @@ const ScanResultScreen = () => {
                   style={[styles.actionBtn, styles.actionBtnDanger]}
                   onPress={handleDelete}
                 >
-                  <Ionicons name="trash-outline" size={16} color={colors.error} />
+                  <Ionicons name="trash-outline" size={22} color={colors.error} />
                   <Text style={[styles.actionBtnText, styles.actionBtnDangerText]}>Delete</Text>
                 </TouchableOpacity>
               )}
@@ -978,28 +1043,27 @@ const styles = StyleSheet.create({
   // Action buttons row
   actionsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     marginTop: spacing.md,
   },
   actionBtn: {
     flex: 1,
-    minWidth: 70,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: 4,
     justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    gap: 4,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
   actionBtnText: {
-    ...typography.bodySmall,
+    ...typography.caption,
     color: colors.textPrimary,
     fontWeight: '600',
+    textAlign: 'center',
   },
   actionBtnDanger: {
     borderColor: colors.error,

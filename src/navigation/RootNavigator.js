@@ -5,6 +5,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import { AlertProvider } from '../context/AlertContext';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -27,17 +28,19 @@ const RootNavigator = () => {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {user ? (
-        <Stack.Screen name="Main" component={MainStack} />
-      ) : (
-        <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        </>
-      )}
-    </Stack.Navigator>
+    <AlertProvider>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {user ? (
+          <Stack.Screen name="Main" component={MainStack} />
+        ) : (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </AlertProvider>
   );
 };
 

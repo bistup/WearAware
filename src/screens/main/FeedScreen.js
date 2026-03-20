@@ -109,16 +109,24 @@ const FeedScreen = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
+      <Ionicons
+        name={activeTab === 'following' ? 'people-outline' : activeTab === 'mine' ? 'camera-outline' : 'earth-outline'}
+        size={52}
+        color={colors.textTertiary}
+        style={{ marginBottom: spacing.md }}
+      />
       <Text style={styles.emptyTitle}>
         {activeTab === 'following'
-          ? 'Your feed is empty'
+          ? 'Nothing here yet'
           : activeTab === 'mine'
-          ? "You haven't shared any scans yet"
+          ? "No posts yet"
           : 'No public scans yet'}
       </Text>
       <Text style={styles.emptyText}>
         {activeTab === 'following'
           ? 'Follow other users to see their sustainable scans here'
+          : activeTab === 'mine'
+          ? 'Share a scan to let the community see your choices'
           : 'Be the first to share a scan with the community!'}
       </Text>
       {activeTab === 'following' && (
@@ -132,35 +140,50 @@ const FeedScreen = () => {
     </View>
   );
 
-  const renderSearchResult = ({ item }) => (
-    <TouchableOpacity
-      style={styles.searchResult}
-      onPress={() => {
-        setSearchQuery('');
-        setSearchResults([]);
-        navigation.navigate('SocialProfile', { firebaseUid: item.firebase_uid });
-      }}
-    >
-      <View style={styles.searchAvatar}>
-        {item.avatar_url ? (
-          <Image source={{ uri: item.avatar_url }} style={styles.searchAvatarImage} />
-        ) : (
-          <Text style={styles.searchAvatarText}>
-            {(item.display_name || item.email || 'U').charAt(0).toUpperCase()}
-          </Text>
-        )}
-      </View>
-      <View style={styles.searchInfo}>
-        <Text style={styles.searchName}>
-          {item.display_name || item.email?.split('@')[0]}
-        </Text>
-        <Text style={styles.searchEmail}>{item.email}</Text>
-      </View>
-      {item.sustainability_score > 0 && (
-        <Text style={styles.searchScore}>Score: {item.sustainability_score}</Text>
-      )}
-    </TouchableOpacity>
-  );
+  const renderSearchResult = ({ item }) => {
+    const name = item.display_name || item.email?.split('@')[0] || 'User';
+    const initials = name.charAt(0).toUpperCase();
+    const score = item.sustainability_score || 0;
+    const scans = item.total_scans || 0;
+    return (
+      <TouchableOpacity
+        style={styles.searchCard}
+        activeOpacity={0.75}
+        onPress={() => {
+          setSearchQuery('');
+          setSearchResults([]);
+          navigation.navigate('SocialProfile', { firebaseUid: item.firebase_uid });
+        }}
+      >
+        <View style={styles.searchCardAvatar}>
+          {item.avatar_url ? (
+            <Image source={{ uri: item.avatar_url }} style={styles.searchCardAvatarImage} />
+          ) : (
+            <Text style={styles.searchCardAvatarText}>{initials}</Text>
+          )}
+        </View>
+        <View style={styles.searchCardInfo}>
+          <Text style={styles.searchCardName}>{name}</Text>
+          <Text style={styles.searchCardEmail} numberOfLines={1}>{item.email}</Text>
+          <View style={styles.searchCardStats}>
+            <View style={styles.searchCardStat}>
+              <Ionicons name="scan-outline" size={12} color={colors.textTertiary} />
+              <Text style={styles.searchCardStatText}>{scans} scan{scans !== 1 ? 's' : ''}</Text>
+            </View>
+            {score > 0 && (
+              <View style={styles.searchCardStat}>
+                <Ionicons name="leaf-outline" size={12} color={colors.primary} />
+                <Text style={[styles.searchCardStatText, { color: colors.primary }]}>{score} pts</Text>
+              </View>
+            )}
+          </View>
+        </View>
+        <View style={styles.searchCardAction}>
+          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (isGuest) {
     return (
@@ -198,20 +221,8 @@ const FeedScreen = () => {
         </View>
       </View>
 
-      {/* Search Results Overlay */}
-      {searchResults.length > 0 && (
-        <View style={styles.searchOverlay}>
-          <FlatList
-            data={searchResults}
-            keyExtractor={(item) => item.firebase_uid}
-            renderItem={renderSearchResult}
-            style={styles.searchList}
-          />
-        </View>
-      )}
-
-      {/* Tab Selector */}
-      <View style={styles.tabContainer}>
+      {/* Tab Selector — hidden while searching */}
+      {searchQuery.length < 2 && <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'following' && styles.tabActive]}
           onPress={() => setActiveTab('following')}
@@ -236,10 +247,33 @@ const FeedScreen = () => {
             My Posts
           </Text>
         </TouchableOpacity>
-      </View>
+      </View>}
+
+      {/* Search Results Panel — replaces feed while searching */}
+      {searchQuery.length >= 2 ? (
+        searching ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : searchResults.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={48} color={colors.textTertiary} style={{ marginBottom: spacing.md }} />
+            <Text style={styles.emptyTitle}>No users found</Text>
+            <Text style={styles.emptyText}>Try a different name or email address</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={searchResults}
+            keyExtractor={(item) => item.firebase_uid}
+            renderItem={renderSearchResult}
+            contentContainerStyle={styles.searchResults}
+            showsVerticalScrollIndicator={false}
+          />
+        )
+      ) : null}
 
       {/* Feed */}
-      {loading ? (
+      {searchQuery.length >= 2 ? null : loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -321,63 +355,72 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     minHeight: 44,
   },
-  searchOverlay: {
-    position: 'absolute',
-    top: 140,
-    left: spacing.lg,
-    right: spacing.lg,
+  searchResults: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
+  },
+  searchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
-    maxHeight: 200,
-    zIndex: 10,
-    elevation: 10,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  searchList: {
-    padding: spacing.sm,
-  },
-  searchResult: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  searchAvatar: {
-    width: 36,
-    height: 36,
+  searchCardAvatar: {
+    width: 52,
+    height: 52,
     borderRadius: borderRadius.full,
     backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.sm,
+    marginRight: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
-  searchAvatarImage: {
+  searchCardAvatarImage: {
     width: '100%',
     height: '100%',
     borderRadius: borderRadius.full,
   },
-  searchAvatarText: {
+  searchCardAvatarText: {
     color: colors.primary,
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 20,
   },
-  searchInfo: {
+  searchCardInfo: {
     flex: 1,
   },
-  searchName: {
+  searchCardName: {
     ...typography.body,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 2,
   },
-  searchEmail: {
+  searchCardEmail: {
     ...typography.caption,
     color: colors.textTertiary,
+    marginBottom: spacing.xs,
   },
-  searchScore: {
+  searchCardStats: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  searchCardStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  searchCardStatText: {
     ...typography.caption,
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  searchCardAction: {
+    marginLeft: spacing.sm,
   },
   tabContainer: {
     flexDirection: 'row',

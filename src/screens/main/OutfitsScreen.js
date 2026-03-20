@@ -11,7 +11,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   ScrollView,
@@ -29,6 +28,7 @@ import {
   deleteOutfit,
   fetchWardrobe,
 } from '../../services/api';
+import { useAlert } from '../../context/AlertContext';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_SHORT = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' };
@@ -38,6 +38,7 @@ const getTodayName = () => {
 };
 
 const OutfitsScreen = () => {
+  const { showAlert } = useAlert();
   const navigation = useNavigation();
   const [activeDay, setActiveDay] = useState(getTodayName());
   const [weekly, setWeekly] = useState({});
@@ -96,11 +97,11 @@ const OutfitsScreen = () => {
 
   const handleCreate = async () => {
     if (!newName.trim()) {
-      Alert.alert('Name Required', 'Give your outfit a name');
+      showAlert('Name Required', 'Give your outfit a name');
       return;
     }
     if (selectedItems.length === 0) {
-      Alert.alert('Add Items', 'Select at least one item for this outfit');
+      showAlert('Add Items', 'Select at least one item for this outfit');
       return;
     }
 
@@ -114,12 +115,12 @@ const OutfitsScreen = () => {
       setShowCreateModal(false);
       loadData();
     } else {
-      Alert.alert('Error', result.error || 'Failed to create outfit');
+      showAlert('Error', result.error || 'Failed to create outfit');
     }
   };
 
   const handleDelete = (outfit) => {
-    Alert.alert(
+    showAlert(
       'Delete Outfit',
       `Delete "${outfit.name}"?`,
       [

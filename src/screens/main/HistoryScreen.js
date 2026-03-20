@@ -3,11 +3,12 @@
 // shows all your previous scans with their grades
 // loads from backend if logged in, otherwise uses local storage for guest mode
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import GradeIndicator from '../../components/GradeIndicator';
@@ -21,6 +22,7 @@ import { auth } from '../../config/firebase';
 const HistoryScreen = () => {
   const navigation = useNavigation();
   const { isGuest, user } = useAuth();
+  const { showAlert } = useAlert();
   const [scans, setScans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exportModalVisible, setExportModalVisible] = useState(false);
@@ -29,19 +31,12 @@ const HistoryScreen = () => {
 
   const styles = getStyles(colors, typography, spacing);
 
-  useEffect(() => {
-    if (!isGuest) {
-      loadHistory();
-    } else {
-      setLoading(false);
-    }
-  }, [isGuest]);
-
-  // reload history when screen comes back into focus (e.g., after comparison)
   useFocusEffect(
     React.useCallback(() => {
       if (!isGuest) {
         loadHistory();
+      } else {
+        setLoading(false);
       }
     }, [isGuest])
   );
@@ -59,7 +54,7 @@ const HistoryScreen = () => {
   };
 
   const handleDeleteScan = (scanId, brand) => {
-    Alert.alert(
+    showAlert(
       'Delete Scan',
       `Are you sure you want to delete the scan for ${brand || 'this item'}?`,
       [
@@ -72,7 +67,7 @@ const HistoryScreen = () => {
             if (result.success) {
               setScans(scans.filter(scan => scan.id !== scanId));
             } else {
-              Alert.alert('Error', result.error || 'Failed to delete scan');
+              showAlert('Error', result.error || 'Failed to delete scan');
             }
           },
         },
@@ -91,13 +86,13 @@ const HistoryScreen = () => {
     } else if (selectedScans.length < 2) {
       setSelectedScans([...selectedScans, scan]);
     } else {
-      Alert.alert('Limit Reached', 'You can only compare 2 items at a time');
+      showAlert('Limit Reached', 'You can only compare 2 items at a time');
     }
   };
 
   const handleCompare = () => {
     if (selectedScans.length !== 2) {
-      Alert.alert('Selection Required', 'Please select exactly 2 items to compare');
+      showAlert('Selection Required', 'Please select exactly 2 items to compare');
       return;
     }
     navigation.navigate('Comparison', { scans: selectedScans });

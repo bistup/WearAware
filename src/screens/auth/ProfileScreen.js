@@ -5,10 +5,11 @@
 // works as both tab destination and stack screen
 
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Image, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import { useThemeMode } from '../../context/ThemeContext';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
@@ -18,6 +19,7 @@ import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { user, logout, isGuest } = useAuth();
+  const { showAlert } = useAlert();
   const { isDarkMode, toggleThemeMode } = useThemeMode();
   const [profile, setProfile] = useState(null);
 
@@ -41,7 +43,7 @@ const ProfileScreen = () => {
   );
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
+    showAlert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',

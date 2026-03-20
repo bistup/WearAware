@@ -35,7 +35,10 @@ const ttl = {
 };
 
 // generic cache operations - all fail silently and return null
+// isReady check prevents node-redis from queuing commands while reconnecting,
+// which would cause callers to hang indefinitely when Redis is unavailable
 const setCached = async (key, data, ttlSeconds) => {
+  if (!client.isReady) return;
   try {
     const value = typeof data === 'string' ? data : JSON.stringify(data);
     await client.setEx(key, ttlSeconds, value);
@@ -45,6 +48,7 @@ const setCached = async (key, data, ttlSeconds) => {
 };
 
 const getCached = async (key, parse = true) => {
+  if (!client.isReady) return null;
   try {
     const cached = await client.get(key);
     if (!cached) return null;
@@ -56,6 +60,7 @@ const getCached = async (key, parse = true) => {
 };
 
 const invalidateCached = async (key) => {
+  if (!client.isReady) return;
   try {
     await client.del(key);
   } catch (error) {

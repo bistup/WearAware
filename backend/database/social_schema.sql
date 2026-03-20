@@ -3,9 +3,9 @@
 -- Adds tables for: follows, posts, likes, comments, achievements, challenges,
 -- wishlists, product recommendations, and user stats
 
--- ============================================================================
+-- 
 -- 1. USER PROFILES (extends existing users table)
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS user_profiles (
     id SERIAL PRIMARY KEY,
@@ -26,9 +26,9 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 
 CREATE INDEX IF NOT EXISTS idx_user_profiles_user ON user_profiles(user_id);
 
--- ============================================================================
+-- 
 -- 2. FOLLOWS (follow/unfollow - directional relationship)
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS follows (
     id SERIAL PRIMARY KEY,
@@ -42,9 +42,9 @@ CREATE TABLE IF NOT EXISTS follows (
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
 
--- ============================================================================
+-- 
 -- 3. SCAN POSTS (shareable scan entries)
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS scan_posts (
     id SERIAL PRIMARY KEY,
@@ -64,9 +64,9 @@ CREATE INDEX IF NOT EXISTS idx_scan_posts_scan ON scan_posts(scan_id);
 CREATE INDEX IF NOT EXISTS idx_scan_posts_visibility ON scan_posts(visibility);
 CREATE INDEX IF NOT EXISTS idx_scan_posts_created ON scan_posts(created_at DESC);
 
--- ============================================================================
+-- 
 -- 4. LIKES
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS likes (
     id SERIAL PRIMARY KEY,
@@ -79,9 +79,9 @@ CREATE TABLE IF NOT EXISTS likes (
 CREATE INDEX IF NOT EXISTS idx_likes_post ON likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_likes_user ON likes(user_id);
 
--- ============================================================================
+-- 
 -- 5. COMMENTS
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS comments (
     id SERIAL PRIMARY KEY,
@@ -97,9 +97,9 @@ CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user_id);
 CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);
 
--- ============================================================================
+-- 
 -- 6. ACHIEVEMENTS
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS achievements (
     id SERIAL PRIMARY KEY,
@@ -133,9 +133,9 @@ INSERT INTO achievements (key, title, description, icon, category, threshold, po
 ('wishlist_5', 'Conscious Shopper', 'Add 5 sustainable alternatives to wishlist', '🛒', 'sustainability', 5, 25)
 ON CONFLICT (key) DO NOTHING;
 
--- ============================================================================
+-- 
 -- 7. USER ACHIEVEMENTS (junction table)
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS user_achievements (
     id SERIAL PRIMARY KEY,
@@ -153,9 +153,9 @@ CREATE TABLE IF NOT EXISTS user_achievements (
 CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_achievements_achievement ON user_achievements(achievement_id);
 
--- ============================================================================
+-- 
 -- 8. CHALLENGES
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS challenges (
     id SERIAL PRIMARY KEY,
@@ -185,9 +185,9 @@ INSERT INTO challenges (title, description, icon, challenge_type, goal_type, goa
 ('Carbon Conscious', 'Save 5kg of CO₂ with sustainable choices this month', '🌍', 'monthly', 'carbon_saved', 5, 100, NOW(), NOW() + INTERVAL '30 days')
 ON CONFLICT DO NOTHING;
 
--- ============================================================================
+-- 
 -- 9. USER CHALLENGE PROGRESS
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS user_challenges (
     id SERIAL PRIMARY KEY,
@@ -204,9 +204,9 @@ CREATE TABLE IF NOT EXISTS user_challenges (
 CREATE INDEX IF NOT EXISTS idx_user_challenges_user ON user_challenges(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_challenges_challenge ON user_challenges(challenge_id);
 
--- ============================================================================
+-- 
 -- 10. PRODUCT RECOMMENDATIONS (sustainable alternatives)
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS product_recommendations (
     id SERIAL PRIMARY KEY,
@@ -249,9 +249,9 @@ INSERT INTO product_recommendations (item_type, brand, product_name, price_usd, 
 ('Socks', 'Bombas', 'Merino Wool Calf Socks', 16.00, 'B', 70, 200.00, 0.10, 'Merino Wool', 'https://bombas.com')
 ON CONFLICT DO NOTHING;
 
--- ============================================================================
+-- 
 -- 11. WISHLIST
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS wishlist (
     id SERIAL PRIMARY KEY,
@@ -264,9 +264,9 @@ CREATE TABLE IF NOT EXISTS wishlist (
 
 CREATE INDEX IF NOT EXISTS idx_wishlist_user ON wishlist(user_id);
 
--- ============================================================================
+-- 
 -- 12. LEADERBOARD CACHE (materialized weekly/monthly)
--- ============================================================================
+-- 
 
 CREATE TABLE IF NOT EXISTS leaderboard (
     id SERIAL PRIMARY KEY,
@@ -286,9 +286,9 @@ CREATE TABLE IF NOT EXISTS leaderboard (
 CREATE INDEX IF NOT EXISTS idx_leaderboard_period ON leaderboard(period_type, period_start);
 CREATE INDEX IF NOT EXISTS idx_leaderboard_rank ON leaderboard(period_type, period_start, rank);
 
--- ============================================================================
+-- 
 -- TRIGGERS
--- ============================================================================
+-- 
 
 CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON user_profiles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

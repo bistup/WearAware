@@ -4,7 +4,7 @@
 // connects to google vision api to read the text from clothing labels
 
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Image, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, StatusBar } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,17 +20,18 @@ import { calculateImpactScore } from '../../utils/impactCalculator';
 import { ITEM_TYPES } from '../../constants/constants';
 import { uploadScanImages } from '../../services/imageUpload';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 
 const CameraScreen = () => {
   const navigation = useNavigation();
   const { isGuest } = useAuth();
+  const { showAlert } = useAlert();
   const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
   const [showPreScanForm, setShowPreScanForm] = useState(true);
   const [brandName, setBrandName] = useState('');
   const [selectedItemType, setSelectedItemType] = useState(null);
   const [selectedGender, setSelectedGender] = useState(null); // 'mens' or 'womens'
-  const [scanMode, setScanMode] = useState('full'); // 'full' or 'care'
   const [showItemTypeModal, setShowItemTypeModal] = useState(false);
   const cameraRef = useRef(null);
 
@@ -59,19 +60,12 @@ const CameraScreen = () => {
 
   // start scanning after user makes selection
   const handleStartScanning = () => {
-    if (scanMode === 'care') {
-      // care instructions scan doesn't need brand/item type
-      setShowPreScanForm(false);
-      return;
-    }
-
-    // full scan requires brand and item type
     if (!brandName.trim()) {
-      Alert.alert('Required', 'Please enter the brand name');
+      showAlert('Required', 'Please enter the brand name');
       return;
     }
     if (!selectedItemType) {
-      Alert.alert('Required', 'Please select an item type');
+      showAlert('Required', 'Please select an item type');
       return;
     }
     // start at step 1 (label scan)
@@ -82,40 +76,18 @@ const CameraScreen = () => {
 
   // pick image from gallery
   const handlePickImage = async () => {
-    if (scanMode === 'care') {
-      try {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: 'images',
-          allowsEditing: true,
-          aspect: [4, 3],
-          quality: 0.8,
-        });
-
-        if (!result.canceled && result.assets[0]) {
-          setLoading(true);
-          const imageUri = result.assets[0].uri;
-          await processCareInstructionsImage(imageUri);
-        }
-      } catch (error) {
-        Alert.alert('Error', 'Failed to pick image');
-        console.error('Image picker error:', error);
-      }
-      return;
-    }
-
-    // full scan mode - validate brand/item type before proceeding
+    // validate brand/item type before proceeding
     if (showPreScanForm) {
       if (!brandName.trim()) {
-        Alert.alert('Required', 'Please enter the brand name');
+        showAlert('Required', 'Please enter the brand name');
         return;
       }
       if (!selectedItemType) {
-        Alert.alert('Required', 'Please select an item type');
+        showAlert('Required', 'Please select an item type');
         return;
       }
     }
 
-    // full scan mode - depends on which step we're at
     if (scanStep === 'label') {
       // step 1: pick label image for OCR
       try {
@@ -131,7 +103,7 @@ const CameraScreen = () => {
           await processLabelImage(result.assets[0].uri);
         }
       } catch (error) {
-        Alert.alert('Error', 'Failed to pick image');
+        showAlert('Error', 'Failed to pick image');
         console.error('Image picker error:', error);
       }
     } else {
@@ -149,7 +121,7 @@ const CameraScreen = () => {
           await processGarmentImage(result.assets[0].uri);
         }
       } catch (error) {
-        Alert.alert('Error', 'Failed to pick image');
+        showAlert('Error', 'Failed to pick image');
         console.error('Image picker error:', error);
       }
     }
@@ -189,9 +161,7 @@ const CameraScreen = () => {
         quality: 0.8,
       });
 
-      if (scanMode === 'care') {
-        await processCareInstructionsImage(photo.uri);
-      } else if (scanStep === 'label') {
+      if (scanStep === 'label') {
         // step 1: scan the label for fibers/OCR
         await processLabelImage(photo.uri);
       } else {
@@ -200,42 +170,8 @@ const CameraScreen = () => {
       }
     } catch (error) {
       setLoading(false);
-      Alert.alert('Error', 'Failed to capture photo. Please try again.');
+      showAlert('Error', 'Failed to capture photo. Please try again.');
       console.error('Capture error:', error);
-    }
-  };
-
-  // process image for care instructions only
-  const processCareInstructionsImage = async (imageUri) => {
-    try {
-      const ocrResult = await processImageHybrid(imageUri);
-      
-      if (!ocrResult.success) {
-        setLoading(false);
-        Alert.alert('Scan Failed', ocrResult.error || 'Could not detect text from the label.');
-        return;
-      }
-
-      const careInstructions = ocrResult.data.careInstructions || [];
-      
-      if (careInstructions.length === 0) {
-        setLoading(false);
-        Alert.alert(
-          'No Care Instructions Detected',
-          'We couldn\'t detect care instructions from this label. Try scanning a clearer image of the care symbols.'
-        );
-        return;
-      }
-
-      setLoading(false);
-      navigation.navigate('CareInstructions', {
-        careInstructions,
-        rawText: ocrResult.data.rawText,
-      });
-    } catch (error) {
-      setLoading(false);
-      Alert.alert('Error', 'Failed to process image');
-      console.error('Care instructions processing error:', error);
     }
   };
 
@@ -251,7 +187,7 @@ const CameraScreen = () => {
 
       if (!ocrResult.success) {
         setLoading(false);
-        Alert.alert(
+        showAlert(
           'Scan Failed',
           ocrResult.error || 'Could not detect text from the label. Would you like to try again or enter details manually?',
           [
@@ -268,7 +204,7 @@ const CameraScreen = () => {
       // check for fiber data
       if (!ocrResult.data.fibers || ocrResult.data.fibers.length === 0) {
         setLoading(false);
-        Alert.alert(
+        showAlert(
           'No Fiber Information Detected',
           'We couldn\'t detect fiber composition from this label. Would you like to try again or enter manually?',
           [
@@ -289,7 +225,7 @@ const CameraScreen = () => {
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      Alert.alert('Error', 'Failed to process label image: ' + error.message);
+      showAlert('Error', 'Failed to process label image: ' + error.message);
       console.error('Label scan error:', error);
     }
   };
@@ -300,13 +236,13 @@ const CameraScreen = () => {
   const processGarmentImage = async (imageUri) => {
     if (isGuest) {
       setLoading(false);
-      Alert.alert('Sign In Required', 'Create an account to save scans. Image upload requires authentication.');
+      showAlert('Sign In Required', 'Create an account to save scans. Image upload requires authentication.');
       return;
     }
 
     if (!labelScanData) {
       setLoading(false);
-      Alert.alert('Missing Label Scan', 'Please scan the care label first before photographing the garment.');
+      showAlert('Missing Label Scan', 'Please scan the care label first before photographing the garment.');
       setScanStep('label');
       return;
     }
@@ -368,7 +304,7 @@ const CameraScreen = () => {
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      Alert.alert('Error', 'Failed to process garment image: ' + error.message);
+      showAlert('Error', 'Failed to process garment image: ' + error.message);
       console.error('Garment image error:', error);
     }
   };
@@ -394,49 +330,7 @@ const CameraScreen = () => {
               Quick setup for better scan accuracy.
             </Text>
 
-            {/* Scan Mode Selector */}
-            <View style={styles.modeSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.modeButton,
-                  scanMode === 'full' && styles.modeButtonActive,
-                ]}
-                onPress={() => setScanMode('full')}
-              >
-                <View style={[styles.modeIconWrap, scanMode === 'full' && styles.modeIconWrapActive]}>
-                  <Ionicons name="scan-outline" size={20} color={scanMode === 'full' ? colors.background : colors.primary} />
-                </View>
-                <Text style={[
-                  styles.modeButtonText,
-                  scanMode === 'full' && styles.modeButtonTextActive,
-                ]}>
-                  Full Scan
-                </Text>
-                <Text style={styles.modeSubtext}>Label + Item Photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.modeButton,
-                  scanMode === 'care' && styles.modeButtonActive,
-                ]}
-                onPress={() => setScanMode('care')}
-              >
-                <View style={[styles.modeIconWrap, scanMode === 'care' && styles.modeIconWrapActive]}>
-                  <Ionicons name="water-outline" size={20} color={scanMode === 'care' ? colors.background : colors.primary} />
-                </View>
-                <Text style={[
-                  styles.modeButtonText,
-                  scanMode === 'care' && styles.modeButtonTextActive,
-                ]}>
-                  Care Labels
-                </Text>
-                <Text style={styles.modeSubtext}>Washing Instructions</Text>
-              </TouchableOpacity>
-            </View>
-
-            {scanMode === 'full' ? (
-              <View style={styles.detailsCard}>
+            <View style={styles.detailsCard}>
                 <Text style={styles.inputLabel}>Brand Name</Text>
                 <View style={styles.brandInputWrap}>
                   <Ionicons name="pricetag-outline" size={18} color={colors.textSecondary} />
@@ -504,19 +398,11 @@ const CameraScreen = () => {
                 {selectedItemType?.weight ? (
                   <Text style={styles.itemTypeHint}>Estimated weight: ~{selectedItemType.weight}g</Text>
                 ) : null}
-              </View>
-            ) : (
-              <View style={styles.careModeBanner}>
-                <Ionicons name="water-outline" size={26} color={colors.primary} />
-                <Text style={styles.careModeText}>
-                  Scan a care label to get washing, drying, and ironing guidance.
-                </Text>
-              </View>
-            )}
+            </View>
 
             <View style={styles.formActions}>
               <Button
-                title={scanMode === 'care' ? 'Scan Care Label' : 'Start Scanning'}
+                title="Start Scanning"
                 onPress={handleStartScanning}
                 style={styles.startButton}
               />
@@ -550,7 +436,7 @@ const CameraScreen = () => {
         <SafeAreaView style={styles.overlay}>
           <TouchableOpacity
             onPress={() => {
-              if (scanMode === 'full' && scanStep === 'garment') {
+              if (scanStep === 'garment') {
                 // go back to label step instead of leaving
                 setScanStep('label');
                 setLabelScanData(null);
@@ -570,17 +456,15 @@ const CameraScreen = () => {
             <Ionicons name="close" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
-          {/* Step indicator for full scan mode */}
-          {scanMode === 'full' && (
-            <View style={styles.stepIndicator}>
-              <View style={[styles.stepDot, scanStep === 'label' && styles.stepDotActive]} />
-              <View style={styles.stepLine} />
-              <View style={[styles.stepDot, scanStep === 'garment' && styles.stepDotActive]} />
-              <Text style={styles.stepLabel}>
-                {scanStep === 'label' ? 'Step 1: Scan Label' : 'Step 2: Photo of Item'}
-              </Text>
-            </View>
-          )}
+          {/* Step indicator */}
+          <View style={styles.stepIndicator}>
+            <View style={[styles.stepDot, scanStep === 'label' && styles.stepDotActive]} />
+            <View style={styles.stepLine} />
+            <View style={[styles.stepDot, scanStep === 'garment' && styles.stepDotActive]} />
+            <Text style={styles.stepLabel}>
+              {scanStep === 'label' ? 'Step 1: Scan Label' : 'Step 2: Photo of Item'}
+            </Text>
+          </View>
 
           <View style={styles.scanningArea}>
             <View style={styles.scanGuideBox}>
@@ -590,11 +474,9 @@ const CameraScreen = () => {
               <View style={[styles.corner, styles.bottomRight]} />
             </View>
             <Text style={styles.guideText}>
-              {scanMode === 'care'
-                ? 'Position care label within frame'
-                : scanStep === 'label'
-                  ? 'Position care/composition label within frame'
-                  : 'Position the full garment within frame'}
+              {scanStep === 'label'
+                ? 'Position care/composition label within frame'
+                : 'Position the full garment within frame'}
             </Text>
           </View>
 
@@ -791,52 +673,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.md,
   },
-  modeSelector: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  modeButton: {
-    flex: 1,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-  },
-  modeButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-    borderWidth: 2,
-  },
-  modeIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  modeIconWrapActive: {
-    backgroundColor: colors.primary,
-  },
-  modeButtonText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  modeButtonTextActive: {
-    color: colors.primary,
-  },
-  modeSubtext: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    marginTop: 2,
-    fontSize: 10,
-  },
   // Step indicator on camera view
   stepIndicator: {
     position: 'absolute',
@@ -882,20 +718,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.md,
-  },
-  careModeBanner: {
-    backgroundColor: colors.primaryLight,
-    padding: spacing.lg,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  careModeText: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    lineHeight: 20,
   },
   inputLabel: {
     ...typography.body,

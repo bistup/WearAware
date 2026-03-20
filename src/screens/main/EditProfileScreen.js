@@ -4,7 +4,7 @@
 // saves changes via socialApi.updateUserProfile
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, Alert, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 import { updateUserProfile } from '../../services/api';
 import { uploadScanImages } from '../../services/imageUpload';
+import { useAlert } from '../../context/AlertContext';
 
 const PRIVACY_OPTIONS = [
   { key: 'public', label: 'Public', description: 'Anyone can see your profile and posts' },
@@ -22,6 +23,7 @@ const PRIVACY_OPTIONS = [
 ];
 
 const EditProfileScreen = () => {
+  const { showAlert } = useAlert();
   const navigation = useNavigation();
   const route = useRoute();
   const { profile } = route.params || {};
@@ -39,7 +41,7 @@ const EditProfileScreen = () => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow photo library access to upload an avatar.');
+        showAlert('Permission needed', 'Please allow photo library access to upload an avatar.');
         return;
       }
 
@@ -67,20 +69,20 @@ const EditProfileScreen = () => {
         });
 
         if (!saveAvatarResult.success) {
-          Alert.alert('Upload saved locally', 'Image uploaded but profile update failed. Tap Save Changes to retry.');
+          showAlert('Upload saved locally', 'Image uploaded but profile update failed. Tap Save Changes to retry.');
         }
       } else {
-        Alert.alert('Upload failed', uploadResult.error || 'Could not upload avatar image.');
+        showAlert('Upload failed', uploadResult.error || 'Could not upload avatar image.');
       }
     } catch (error) {
       setUploadingAvatar(false);
-      Alert.alert('Error', error.message || 'Failed to select image.');
+      showAlert('Error', error.message || 'Failed to select image.');
     }
   };
 
   const handleSave = async () => {
     if (!displayName.trim()) {
-      Alert.alert('Required', 'Please enter a display name.');
+      showAlert('Required', 'Please enter a display name.');
       return;
     }
 
@@ -95,11 +97,11 @@ const EditProfileScreen = () => {
     setSaving(false);
 
     if (result.success) {
-      Alert.alert('Saved', 'Your profile has been updated.', [
+      showAlert('Saved', 'Your profile has been updated.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } else {
-      Alert.alert('Error', result.error || 'Failed to update profile.');
+      showAlert('Error', result.error || 'Failed to update profile.');
     }
   };
 

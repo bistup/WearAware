@@ -5,10 +5,11 @@
 // eaa compliant: large touch targets, clear labels
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,13 +18,14 @@ import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 const LoginScreen = () => {
   const navigation = useNavigation();
   const { login, loginAsGuest } = useAuth();
+  const { showAlert } = useAlert();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+      showAlert('Error', 'Please enter email and password');
       return;
     }
 
@@ -32,7 +34,7 @@ const LoginScreen = () => {
     setLoading(false);
 
     if (!result.success) {
-      Alert.alert('Login Failed', result.error);
+      showAlert('Login Failed', result.error);
     }
   };
 
@@ -42,7 +44,7 @@ const LoginScreen = () => {
     setLoading(false);
 
     if (!result.success) {
-      Alert.alert('Guest Login Failed', result.error);
+      showAlert('Guest Login Failed', result.error);
     }
   };
 

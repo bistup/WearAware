@@ -59,9 +59,9 @@ const apiFetch = async (url, options = {}, fallback = null) => {
   }
 };
 
-// ============================================================================
+// 
 // users
-// ============================================================================
+// 
 
 export const syncUserWithBackend = async (firebaseUser) => {
   if (!firebaseUser || firebaseUser.isAnonymous) {
@@ -73,9 +73,9 @@ export const syncUserWithBackend = async (firebaseUser) => {
   });
 };
 
-// ============================================================================
+// 
 // item types
-// ============================================================================
+// 
 
 export const getItemWeight = async (itemType) => {
   try {
@@ -86,9 +86,9 @@ export const getItemWeight = async (itemType) => {
   }
 };
 
-// ============================================================================
+// 
 // scans
-// ============================================================================
+// 
 
 export const saveScanToBackend = async (scanData) => {
   const user = auth.currentUser;
@@ -150,9 +150,9 @@ export const updateScan = async (scanId, updatedData) => {
   });
 };
 
-// ============================================================================
+// 
 // ai summaries
-// ============================================================================
+// 
 
 export const generateAiSummary = async (scanId) => {
   return apiFetch(`${BACKEND_API_URL}/summaries/${scanId}`, { method: 'POST' });
@@ -165,9 +165,9 @@ export const generateAiSummaryFromData = async (scanData) => {
   });
 };
 
-// ============================================================================
+// 
 // sOCIAL - profiles, follows, feed, posts, likes, comments
-// ============================================================================
+// 
 
 export const fetchUserProfile = async (targetFirebaseUid) => {
   return apiFetch(
@@ -280,9 +280,9 @@ export const deleteComment = async (commentId) => {
   });
 };
 
-// ============================================================================
+// 
 // aLTERNATIVES - recommendations, comparison, wishlist
-// ============================================================================
+// 
 
 export const fetchRecommendations = async (itemType) => {
   const params = new URLSearchParams();
@@ -322,9 +322,9 @@ export const removeFromWishlist = async (wishlistId) => {
   });
 };
 
-// ============================================================================
+// 
 // gAMIFICATION - achievements, challenges, leaderboard
-// ============================================================================
+// 
 
 export const fetchAchievements = async () => {
   return apiFetch(
@@ -378,9 +378,9 @@ export const fetchLeaderboard = async (period = 'weekly') => {
   );
 };
 
-// ============================================================================
+// 
 // VISUAL SCAN - CLIP image similarity
-// ============================================================================
+// 
 
 export const createVisualScan = async (imageUrl, itemType, brand) => {
   return apiFetch(`${BACKEND_API_URL}/scans/visual-scan`, {
@@ -402,9 +402,9 @@ export const fetchVisualRecommendations = async (scanId) => {
   );
 };
 
-// ============================================================================
+// 
 // WEB SEARCH - live product search from the web
-// ============================================================================
+// 
 
 export const searchWebAlternatives = async (itemType, primaryFiber, imageUrl, gender) => {
   const params = new URLSearchParams();
@@ -419,9 +419,9 @@ export const searchWebAlternatives = async (itemType, primaryFiber, imageUrl, ge
   );
 };
 
-// ============================================================================
+// 
 // EBAY SECOND-HAND - pre-owned clothing search
-// ============================================================================
+// 
 
 export const searchSecondHand = async (itemType, primaryFiber, imageUrl, gender) => {
   const params = new URLSearchParams();
@@ -436,9 +436,9 @@ export const searchSecondHand = async (itemType, primaryFiber, imageUrl, gender)
   );
 };
 
-// ============================================================================
+// 
 // CHARITY SHOPS - find nearby charity/thrift shops via Google Places
-// ============================================================================
+// 
 
 export const fetchNearbyCharityShops = async (lat, lng, radius = 5000) => {
   return apiFetch(
@@ -448,9 +448,9 @@ export const fetchNearbyCharityShops = async (lat, lng, radius = 5000) => {
   );
 };
 
-// ============================================================================
+// 
 // WARDROBE - manage user's clothing wardrobe
-// ============================================================================
+// 
 
 export const fetchWardrobe = async (category) => {
   const uid = getUid();
@@ -496,9 +496,22 @@ export const importScansToWardrobe = async () => {
   });
 };
 
-// ============================================================================
+export const fetchMarketplace = async (filter) => {
+  const uid = getUid();
+  const params = `firebaseUid=${uid}${filter && filter !== 'all' ? `&filter=${filter}` : ''}`;
+  return apiFetch(`${BACKEND_API_URL}/wardrobe/marketplace?${params}`, {}, { items: [] });
+};
+
+export const listWardrobeItem = async (itemId, availableFor) => {
+  return apiFetch(`${BACKEND_API_URL}/wardrobe/${itemId}/list`, {
+    method: 'PUT',
+    body: JSON.stringify({ firebaseUid: getUid(), availableFor }),
+  });
+};
+
+// 
 // OUTFITS - create and manage outfits from wardrobe items
-// ============================================================================
+// 
 
 export const fetchOutfits = async (day) => {
   const params = `firebaseUid=${getUid()}${day ? `&day=${encodeURIComponent(day)}` : ''}`;
@@ -527,4 +540,98 @@ export const deleteOutfit = async (id) => {
   return apiFetch(`${BACKEND_API_URL}/outfits/${id}?firebaseUid=${getUid()}`, {
     method: 'DELETE',
   });
+};
+
+// 
+// MESSAGING - conversations, messages, and trade requests
+// 
+
+export const fetchConversations = async () => {
+  return apiFetch(
+    `${BACKEND_API_URL}/messaging/conversations?firebaseUid=${getUid()}`,
+    {},
+    { conversations: [] }
+  );
+};
+
+export const startConversation = async (targetFirebaseUid) => {
+  return apiFetch(`${BACKEND_API_URL}/messaging/conversations`, {
+    method: 'POST',
+    body: JSON.stringify({ firebaseUid: getUid(), targetFirebaseUid }),
+  });
+};
+
+export const fetchMessages = async (conversationId, page = 1) => {
+  return apiFetch(
+    `${BACKEND_API_URL}/messaging/conversations/${conversationId}/messages?firebaseUid=${getUid()}&page=${page}`,
+    {},
+    { messages: [] }
+  );
+};
+
+export const sendMessage = async (conversationId, content) => {
+  return apiFetch(`${BACKEND_API_URL}/messaging/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ firebaseUid: getUid(), content }),
+  });
+};
+
+export const fetchUnreadCount = async () => {
+  return apiFetch(
+    `${BACKEND_API_URL}/messaging/unread-count?firebaseUid=${getUid()}`,
+    {},
+    { count: 0 }
+  );
+};
+
+export const createTradeRequest = async ({ targetFirebaseUid, offeredItemId, wantedItemId, tradeType, lat, lng }) => {
+  return apiFetch(`${BACKEND_API_URL}/messaging/trade-request`, {
+    method: 'POST',
+    body: JSON.stringify({ firebaseUid: getUid(), targetFirebaseUid, offeredItemId, wantedItemId, tradeType, lat, lng }),
+  });
+};
+
+export const fetchTradeRequest = async (tradeId) => {
+  return apiFetch(
+    `${BACKEND_API_URL}/messaging/trade-request/${tradeId}?firebaseUid=${getUid()}`,
+    {},
+    null
+  );
+};
+
+export const respondToTrade = async (tradeId, action, lat, lng) => {
+  return apiFetch(`${BACKEND_API_URL}/messaging/trade-request/${tradeId}/respond`, {
+    method: 'PUT',
+    body: JSON.stringify({ firebaseUid: getUid(), action, lat, lng }),
+  });
+};
+
+export const updateTradeShop = async (tradeId, shop) => {
+  return apiFetch(`${BACKEND_API_URL}/messaging/trade-request/${tradeId}/update-shop`, {
+    method: 'PUT',
+    body: JSON.stringify({ firebaseUid: getUid(), shopName: shop.name, shopAddress: shop.address, shopLat: shop.lat, shopLng: shop.lng }),
+  });
+};
+
+export const completeTrade = async (tradeId) => {
+  return apiFetch(`${BACKEND_API_URL}/messaging/trade-request/${tradeId}/complete`, {
+    method: 'PUT',
+    body: JSON.stringify({ firebaseUid: getUid() }),
+  });
+};
+
+export const fetchTradeRequests = async () => {
+  return apiFetch(
+    `${BACKEND_API_URL}/messaging/trade-requests?firebaseUid=${getUid()}`,
+    {},
+    { trades: [] }
+  );
+};
+
+export const fetchNearbyShopsForTrade = async (lat, lng) => {
+  return apiFetch(
+    `${BACKEND_API_URL}/messaging/nearby-shops?lat=${lat}&lng=${lng}&firebaseUid=${getUid()}`,
+    {},
+    { shops: [] }
+  );
 };

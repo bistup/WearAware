@@ -4,10 +4,11 @@
 // just email and password, nothing fancy
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,7 @@ import { colors, typography, spacing, borderRadius } from '../../theme/theme';
 const RegisterScreen = () => {
   const navigation = useNavigation();
   const { register } = useAuth();
+  const { showAlert } = useAlert();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -25,19 +27,19 @@ const RegisterScreen = () => {
   const handleRegister = async () => {
     // check all fields filled
     if (!email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
 
     // passwords must match
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showAlert('Error', 'Passwords do not match');
       return;
     }
 
     // minimum password length
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      showAlert('Error', 'Password must be at least 6 characters');
       return;
     }
 
@@ -46,7 +48,7 @@ const RegisterScreen = () => {
     setLoading(false);
 
     if (!result.success) {
-      Alert.alert('Registration Failed', result.error);
+      showAlert('Registration Failed', result.error);
     }
   };
 

@@ -12,15 +12,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   ScrollView,
   FlatList,
 } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme/theme';
 import { getGradeColor } from '../theme/theme';
 import { exportAsCSV, exportAsText, exportAsPDF, generateStatistics } from '../services/exportService';
+import { useAlert } from '../context/AlertContext';
 
 const ExportModal = ({ visible, scans, selectedScans: initialSelected = [], onClose }) => {
+  const { showAlert } = useAlert();
   const [exporting, setExporting] = useState(false);
   const [exportMode, setExportMode] = useState('all'); // 'all' or 'selected'
   const [selectedItems, setSelectedItems] = useState([]);
@@ -53,16 +54,16 @@ const ExportModal = ({ visible, scans, selectedScans: initialSelected = [], onCl
 
   const handleExportCSV = async () => {
     if (scansToExport.length === 0) {
-      Alert.alert('No Items', 'Please select at least one scan to export');
+      showAlert('No Items', 'Please select at least one scan to export');
       return;
     }
     setExporting(true);
     try {
       await exportAsCSV(scansToExport);
-      Alert.alert('Success', `Exported ${scansToExport.length} scan(s) as CSV`);
+      showAlert('Success', `Exported ${scansToExport.length} scan(s) as CSV`);
       onClose();
     } catch (error) {
-      Alert.alert('Error', 'Failed to export CSV: ' + error.message);
+      showAlert('Error', 'Failed to export CSV: ' + error.message);
     } finally {
       setExporting(false);
     }
@@ -70,16 +71,16 @@ const ExportModal = ({ visible, scans, selectedScans: initialSelected = [], onCl
 
   const handleExportText = async () => {
     if (scansToExport.length === 0) {
-      Alert.alert('No Items', 'Please select at least one scan to export');
+      showAlert('No Items', 'Please select at least one scan to export');
       return;
     }
     setExporting(true);
     try {
       await exportAsText(scansToExport);
-      Alert.alert('Success', `Exported ${scansToExport.length} scan(s) as TXT`);
+      showAlert('Success', `Exported ${scansToExport.length} scan(s) as TXT`);
       onClose();
     } catch (error) {
-      Alert.alert('Error', 'Failed to export report: ' + error.message);
+      showAlert('Error', 'Failed to export report: ' + error.message);
     } finally {
       setExporting(false);
     }
@@ -87,16 +88,16 @@ const ExportModal = ({ visible, scans, selectedScans: initialSelected = [], onCl
 
   const handleExportPDF = async () => {
     if (scansToExport.length === 0) {
-      Alert.alert('No Items', 'Please select at least one scan to export');
+      showAlert('No Items', 'Please select at least one scan to export');
       return;
     }
     setExporting(true);
     try {
       await exportAsPDF(scansToExport);
-      Alert.alert('Success', `Exported ${scansToExport.length} scan(s) as PDF`);
+      showAlert('Success', `Exported ${scansToExport.length} scan(s) as PDF`);
       onClose();
     } catch (error) {
-      Alert.alert('Error', 'Failed to export PDF: ' + error.message);
+      showAlert('Error', 'Failed to export PDF: ' + error.message);
     } finally {
       setExporting(false);
     }
