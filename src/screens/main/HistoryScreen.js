@@ -120,6 +120,9 @@ const HistoryScreen = () => {
         }}
         activeOpacity={0.7}
         style={[styles.scanCard, isSelected && styles.selectedCard]}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.brand || 'Unknown Brand'} ${item.itemType || 'Garment'}, grade ${item.grade || 'C'}`}
+        accessibilityHint={comparisonMode ? 'Select this item for comparison' : 'View scan details'}
       >
         <View style={styles.scanRow}>
           {/* Thumbnail or grade circle */}
@@ -160,6 +163,8 @@ const HistoryScreen = () => {
                   handleDeleteScan(item.id, item.brand);
                 }}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete scan for ${item.brand || 'this item'}`}
               >
                 <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
               </TouchableOpacity>
@@ -215,12 +220,16 @@ const HistoryScreen = () => {
                 <TouchableOpacity
                   onPress={() => setExportModalVisible(true)}
                   style={styles.iconButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Export scan history"
                 >
                   <Ionicons name="download-outline" size={20} color={colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleToggleComparison}
                   style={styles.iconButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Compare scans"
                 >
                   <Ionicons name="git-compare-outline" size={20} color={colors.primary} />
                 </TouchableOpacity>
@@ -229,6 +238,8 @@ const HistoryScreen = () => {
               <TouchableOpacity
                 onPress={handleToggleComparison}
                 style={styles.iconButton}
+                accessibilityRole="button"
+                accessibilityLabel="Exit comparison mode"
               >
                 <Ionicons name="close" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
@@ -246,6 +257,8 @@ const HistoryScreen = () => {
             <TouchableOpacity
               onPress={handleCompare}
               style={styles.compareNowButton}
+              accessibilityRole="button"
+              accessibilityLabel="Compare selected items"
             >
               <Text style={styles.compareNowText}>Compare Now</Text>
             </TouchableOpacity>

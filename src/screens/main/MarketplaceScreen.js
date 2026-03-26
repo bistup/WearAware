@@ -166,6 +166,8 @@ const MarketplaceScreen = () => {
             onPress={() => handleContactOwner(item)}
             disabled={isContactLoading}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Message ${item.ownerName || 'owner'} about ${item.name || 'this item'}`}
           >
             {isContactLoading ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -222,6 +224,9 @@ const MarketplaceScreen = () => {
             key={f.key}
             style={[styles.tab, filter === f.key && styles.tabActive]}
             onPress={() => handleFilterChange(f.key)}
+            accessibilityRole="tab"
+            accessibilityLabel={`${f.label} filter`}
+            accessibilityState={{ selected: filter === f.key }}
           >
             <Text style={[styles.tabText, filter === f.key && styles.tabTextActive]}>
               {f.label}

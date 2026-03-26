@@ -49,6 +49,8 @@ const ForgotPasswordScreen = () => {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
           <View style={styles.backRow}>
             <Ionicons name="chevron-back" size={20} color={colors.primary} />
@@ -69,9 +71,10 @@ const ForgotPasswordScreen = () => {
           onChangeText={setEmail}
           placeholder="your@email.com"
           keyboardType="email-address"
+          accessibilityHint="Enter your email address to receive a password reset link"
         />
 
-        <Button title="Send Reset Link" onPress={handleResetPassword} loading={loading} />
+        <Button title="Send Reset Link" onPress={handleResetPassword} loading={loading} accessibilityHint="Send a password reset link to your email" />
       </View>
     </SafeAreaView>
   );

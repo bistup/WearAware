@@ -190,7 +190,7 @@ const TradeScreen = () => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Send Trade</Text>
@@ -210,6 +210,9 @@ const TradeScreen = () => {
               <TouchableOpacity
                 style={[styles.typeBtn, tradeType === 'free' && styles.typeBtnActive]}
                 onPress={() => setTradeType('free')}
+                accessibilityRole="button"
+                accessibilityLabel="Give for free"
+                accessibilityState={{ selected: tradeType === 'free' }}
               >
                 <Ionicons name="gift-outline" size={20} color={tradeType === 'free' ? '#fff' : colors.textSecondary} />
                 <Text style={[styles.typeBtnText, tradeType === 'free' && styles.typeBtnTextActive]}>Give for Free</Text>
@@ -217,6 +220,9 @@ const TradeScreen = () => {
               <TouchableOpacity
                 style={[styles.typeBtn, tradeType === 'trade' && styles.typeBtnActive]}
                 onPress={() => setTradeType('trade')}
+                accessibilityRole="button"
+                accessibilityLabel="Trade for item"
+                accessibilityState={{ selected: tradeType === 'trade' }}
               >
                 <Ionicons name="swap-horizontal-outline" size={20} color={tradeType === 'trade' ? '#fff' : colors.textSecondary} />
                 <Text style={[styles.typeBtnText, tradeType === 'trade' && styles.typeBtnTextActive]}>Trade for Item</Text>
@@ -240,6 +246,9 @@ const TradeScreen = () => {
                   <TouchableOpacity
                     style={[styles.itemCard, selectedItem?.id === item.id && styles.itemCardSelected]}
                     onPress={() => setSelectedItem(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.name || 'Item'} by ${item.brand || 'unknown brand'}`}
+                    accessibilityState={{ selected: selectedItem?.id === item.id }}
                   >
                     {(item.thumbnailUrl || item.imageUrl) ? (
                       <Image source={{ uri: item.thumbnailUrl || item.imageUrl }} style={styles.itemImage} />
@@ -278,6 +287,8 @@ const TradeScreen = () => {
               style={[styles.submitBtn, (!selectedItem || submitting) && styles.submitBtnDisabled]}
               onPress={handleCreateTrade}
               disabled={!selectedItem || submitting}
+              accessibilityRole="button"
+              accessibilityLabel={tradeType === 'free' ? 'Offer for free' : 'Send trade request'}
             >
               {submitting ? (
                 <ActivityIndicator color="#fff" />
@@ -303,7 +314,7 @@ const TradeScreen = () => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Trade Details</Text>
@@ -320,7 +331,7 @@ const TradeScreen = () => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Trade Details</Text>
@@ -491,14 +502,14 @@ const TradeScreen = () => {
                     <Text style={styles.shopAddress}>{trade.charity_shop_address}</Text>
                   </View>
                   {isAccepted && (
-                    <TouchableOpacity style={styles.changeShopBtn} onPress={handleChangeShop}>
+                    <TouchableOpacity style={styles.changeShopBtn} onPress={handleChangeShop} accessibilityRole="button" accessibilityLabel="Change charity shop">
                       <Ionicons name="pencil-outline" size={16} color={colors.primary} />
                       <Text style={styles.changeShopText}>Change</Text>
                     </TouchableOpacity>
                   )}
                 </View>
               ) : (
-                <TouchableOpacity style={styles.shopCard} onPress={handleChangeShop}>
+                <TouchableOpacity style={styles.shopCard} onPress={handleChangeShop} accessibilityRole="button" accessibilityLabel="Find a charity shop">
                   <Ionicons name="location-outline" size={22} color={colors.textTertiary} />
                   <Text style={[styles.shopName, { color: colors.primary, marginLeft: spacing.sm }]}>
                     Find a charity shop
@@ -594,11 +605,11 @@ const TradeScreen = () => {
         {/* Action buttons */}
         {isPending && !isMyTrade && (
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.declineBtn} onPress={handleDecline} disabled={submitting}>
+            <TouchableOpacity style={styles.declineBtn} onPress={handleDecline} disabled={submitting} accessibilityRole="button" accessibilityLabel="Decline trade request">
               <Ionicons name="close" size={20} color="#EF4444" />
               <Text style={styles.declineBtnText}>Decline</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.acceptBtn} onPress={handleAccept} disabled={submitting}>
+            <TouchableOpacity style={styles.acceptBtn} onPress={handleAccept} disabled={submitting} accessibilityRole="button" accessibilityLabel="Accept trade request">
               {submitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
@@ -612,7 +623,7 @@ const TradeScreen = () => {
         )}
 
         {isAccepted && (
-          <TouchableOpacity style={styles.completeBtn} onPress={handleComplete} disabled={submitting}>
+          <TouchableOpacity style={styles.completeBtn} onPress={handleComplete} disabled={submitting} accessibilityRole="button" accessibilityLabel="Mark trade as completed">
             {submitting ? <ActivityIndicator color="#fff" /> : (
               <>
                 <Ionicons name="checkmark-done" size={20} color="#fff" />
@@ -647,7 +658,7 @@ const TradeScreen = () => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Choose Charity Shop</Text>
-              <TouchableOpacity onPress={() => setShopModalVisible(false)} style={styles.modalClose}>
+              <TouchableOpacity onPress={() => setShopModalVisible(false)} style={styles.modalClose} accessibilityRole="button" accessibilityLabel="Close shop picker">
                 <Ionicons name="close" size={22} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
@@ -664,7 +675,7 @@ const TradeScreen = () => {
                 data={nearbyShops}
                 keyExtractor={(item, idx) => `${item.name}-${idx}`}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={styles.shopOption} onPress={() => selectShop(item)}>
+                  <TouchableOpacity style={styles.shopOption} onPress={() => selectShop(item)} accessibilityRole="button" accessibilityLabel={`Select ${item.name}`}>
                     <View style={styles.shopOptionIcon}>
                       <Ionicons name="storefront-outline" size={18} color={colors.primary} />
                     </View>

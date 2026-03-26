@@ -73,6 +73,8 @@ const MessagesScreen = () => {
           otherAvatarUrl: item.other_avatar_url,
         })}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`Conversation with ${item.other_display_name || 'User'}${unread ? ', unread messages' : ''}`}
       >
         <View style={styles.avatarContainer}>
           {item.other_avatar_url ? (
@@ -106,7 +108,7 @@ const MessagesScreen = () => {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Messages</Text>

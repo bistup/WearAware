@@ -119,6 +119,8 @@ const ChatScreen = () => {
             style={styles.tradeMessageCard}
             onPress={() => item.trade_request_id && handleTradePress(item.trade_request_id)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="View trade details"
           >
             <View style={styles.tradeMessageIcon}>
               <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
@@ -156,12 +158,14 @@ const ChatScreen = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerProfile}
             onPress={() => navigation.navigate('SocialProfile', { firebaseUid: otherFirebaseUid })}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${otherUserName || 'user'} profile`}
           >
             {otherAvatarUrl ? (
               <Image source={{ uri: otherAvatarUrl }} style={styles.headerAvatar} />
@@ -175,6 +179,8 @@ const ChatScreen = () => {
           <TouchableOpacity
             style={styles.tradeBtn}
             onPress={() => navigation.navigate('Trade', { conversationId, otherFirebaseUid, otherUserName })}
+            accessibilityRole="button"
+            accessibilityLabel="Create trade request"
           >
             <Ionicons name="swap-horizontal" size={22} color={colors.primary} />
           </TouchableOpacity>
@@ -209,11 +215,15 @@ const ChatScreen = () => {
             onChangeText={setInputText}
             multiline
             maxLength={1000}
+            accessibilityLabel="Message input"
+            accessibilityHint="Type a message to send"
           />
           <TouchableOpacity
             style={[styles.sendBtn, (!inputText.trim() || sending) && styles.sendBtnDisabled]}
             onPress={handleSend}
             disabled={!inputText.trim() || sending}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
           >
             <Ionicons name="send" size={20} color={inputText.trim() && !sending ? '#fff' : colors.textTertiary} />
           </TouchableOpacity>
