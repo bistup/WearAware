@@ -25,6 +25,7 @@ web-build/
 
 # Claude Code settings (may contain credentials)
 .claude/
+CLAUDE.md
 
 # Config files with credentials
 *.conf

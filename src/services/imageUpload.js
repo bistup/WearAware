@@ -7,9 +7,9 @@
 
 import { auth } from '../config/firebase';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { BACKEND_API_URL } from '@env';
 
-// backend URL (same LXC as the API)
-const UPLOAD_URL = 'http://YOUR_SERVER_IP:3000/api/uploads/image';
+const UPLOAD_URL = `${BACKEND_API_URL || 'http://localhost:3000/api'}/uploads/image`;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -181,7 +181,7 @@ export async function deleteImage(imageUrl) {
     const pathPart = urlParts[1]; // "userHash/filename.jpg"
 
     const response = await fetch(
-      `http://YOUR_SERVER_IP:3000/api/uploads/image/${pathPart}`,
+      `${BACKEND_API_URL || 'http://localhost:3000/api'}/uploads/image/${pathPart}`,
       {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...authHeader },
@@ -208,7 +208,7 @@ export async function deleteAllMyImages() {
 
     const authHeader = await getAuthHeader();
 
-    const response = await fetch('http://YOUR_SERVER_IP:3000/api/uploads/my-data', {
+    const response = await fetch(`${BACKEND_API_URL || 'http://localhost:3000/api'}/uploads/my-data`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', ...authHeader },
       body: JSON.stringify({ firebaseUid: user.uid }),

@@ -21,8 +21,7 @@ conscious fashion choices.
 ARCHITECTURE
 ------------
 
-The system is a three-tier architecture deployed on a Proxmox LXC container
-at YOUR_SERVER_IP:
+The system is a three-tier architecture deployed on a Proxmox LXC container:
 
   Tier            Technology                  Port    Role
   --------------- --------------------------- ------- ----------------------------------------
@@ -391,7 +390,7 @@ EXTERNAL SERVICES & API KEYS
 DEPLOYMENT
 -----------
 
-All backend services run on a Proxmox LXC container (YOUR_SERVER_IP):
+All backend services run on a Proxmox LXC container:
   - 2 CPU cores, 5GB RAM, 20GB disk, no GPU
   - Node.js 18 backend on port 3000
   - Python Flask ML service on port 5000 (CLIP runs on CPU, ~45s model

@@ -3,9 +3,9 @@
 // all backend api calls - scans, users, social, alternatives, gamification
 
 import { auth } from '../config/firebase';
+import { BACKEND_API_URL as ENV_BACKEND_URL } from '@env';
 
-// dev server on Proxmox LXC
-const BACKEND_API_URL = 'http://YOUR_SERVER_IP:3000/api';
+const BACKEND_API_URL = ENV_BACKEND_URL || 'http://localhost:3000/api';
 
 const getUid = () => auth.currentUser?.uid;
 
