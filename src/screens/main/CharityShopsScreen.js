@@ -3,7 +3,7 @@
 // charity shops screen - shows nearby charity/thrift shops on a map
 // uses expo-location for user position and react-native-maps for display
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,

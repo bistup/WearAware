@@ -69,21 +69,25 @@ const BreakdownScreen = () => {
             {water_usage_liters != null && (
               <ImpactMetric
                 label="Water Footprint"
-                value={typeof water_usage_liters === 'number' ? water_usage_liters.toFixed(1) : water_usage_liters}
-                unit="litres"
+                value={typeof water_usage_liters === 'number'
+                  ? (water_usage_liters >= 1000 ? (water_usage_liters / 1000).toFixed(1) : water_usage_liters.toFixed(1))
+                  : water_usage_liters}
+                unit={typeof water_usage_liters === 'number' && water_usage_liters >= 1000 ? 'kL' : 'litres'}
               />
             )}
             {carbon_footprint_kg != null && (
               <ImpactMetric
                 label="Carbon Footprint"
-                value={typeof carbon_footprint_kg === 'number' ? carbon_footprint_kg.toFixed(2) : carbon_footprint_kg}
+                value={typeof carbon_footprint_kg === 'number'
+                  ? (carbon_footprint_kg >= 100 ? carbon_footprint_kg.toFixed(0) : carbon_footprint_kg.toFixed(2))
+                  : carbon_footprint_kg}
                 unit="kg CO₂"
               />
             )}
             <View style={styles.comparisonBox}>
               <Text style={styles.comparisonText}>
-                {water_usage_liters != null && typeof water_usage_liters === 'number' ? 
-                  `Equivalent to ${Math.round(water_usage_liters / 8)} cups of tea` : 
+                {water_usage_liters != null && typeof water_usage_liters === 'number' ?
+                  `Equivalent to ${Math.round(water_usage_liters / 0.25).toLocaleString()} cups of tea` :
                   'Water usage varies by fiber'}
               </Text>
               <Text style={styles.comparisonText}>

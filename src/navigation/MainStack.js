@@ -38,6 +38,9 @@ import OutfitsScreen from '../screens/main/OutfitsScreen';
 // marketplace
 import MarketplaceScreen from '../screens/main/MarketplaceScreen';
 
+// sustainability insights
+import SustainabilityScreen from '../screens/main/SustainabilityScreen';
+
 // messaging & trades
 import MessagesScreen from '../screens/main/MessagesScreen';
 import ChatScreen from '../screens/main/ChatScreen';
@@ -86,6 +89,9 @@ const MainStack = () => {
 
       {/* Marketplace */}
       <Stack.Screen name="MarketplaceScreen" component={MarketplaceScreen} />
+
+      {/* Sustainability Insights */}
+      <Stack.Screen name="Sustainability" component={SustainabilityScreen} />
 
       {/* Messaging & Trades */}
       <Stack.Screen name="Messages" component={MessagesScreen} />

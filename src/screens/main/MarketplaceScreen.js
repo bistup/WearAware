@@ -12,12 +12,13 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows, getGradeColor } from '../../theme/theme';
-import { fetchMarketplace, startConversation } from '../../services/api';
+import { fetchMarketplace, startConversation, listWardrobeItem } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 
@@ -32,6 +33,7 @@ const MarketplaceScreen = () => {
   const { user, isGuest } = useAuth();
   const { showAlert } = useAlert();
   const [items, setItems] = useState([]);
+  const [myListings, setMyListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
@@ -48,6 +50,7 @@ const MarketplaceScreen = () => {
     const result = await fetchMarketplace(filter);
     if (result.success) {
       setItems(result.items || []);
+      setMyListings(result.myListings || []);
     }
     setLoading(false);
     setRefreshing(false);
@@ -183,6 +186,59 @@ const MarketplaceScreen = () => {
     );
   };
 
+  const handleUnlist = async (item) => {
+    showAlert('Remove Listing', `Remove "${item.name || 'this item'}" from the marketplace?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          const result = await listWardrobeItem(item.id, null);
+          if (result.success) {
+            setMyListings(prev => prev.filter(i => i.id !== item.id));
+          }
+        },
+      },
+    ]);
+  };
+
+  const renderMyListings = () => {
+    if (myListings.length === 0) return null;
+    return (
+      <View style={styles.myListingsSection}>
+        <Text style={styles.myListingsTitle}>Your Listings</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.myListingsScroll}>
+          {myListings.map(item => {
+            const badge = item.availableFor === 'both' ? ['free', 'trade'] : [item.availableFor];
+            return (
+              <TouchableOpacity key={item.id} style={styles.myListingCard} onPress={() => handleUnlist(item)} activeOpacity={0.8}>
+                <View style={styles.myListingImageWrap}>
+                  {item.imageUrl || item.thumbnailUrl ? (
+                    <Image source={{ uri: item.thumbnailUrl || item.imageUrl }} style={styles.myListingImage} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.myListingImagePlaceholder}>
+                      <Ionicons name="shirt-outline" size={22} color={colors.textTertiary} />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.myListingName} numberOfLines={1}>{item.name || item.itemType || 'Item'}</Text>
+                <View style={styles.badgeRow}>
+                  {badge.map(b => (
+                    <View key={b} style={[styles.typeBadge, b === 'free' ? styles.freeBadge : styles.tradeBadge]}>
+                      <Text style={[styles.typeBadgeText, b === 'free' ? styles.freeBadgeText : styles.tradeBadgeText]}>
+                        {b === 'free' ? 'Free' : 'Trade'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
+
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Ionicons name="storefront-outline" size={52} color={colors.textTertiary} style={{ marginBottom: spacing.md }} />
@@ -247,7 +303,8 @@ const MarketplaceScreen = () => {
           numColumns={2}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={renderEmpty}
+          ListHeaderComponent={renderMyListings}
+          ListEmptyComponent={myListings.length === 0 ? renderEmpty : null}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
           }
@@ -453,6 +510,50 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: '#fff',
     fontWeight: '700',
+  },
+  myListingsSection: {
+    paddingBottom: spacing.md,
+    marginBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  myListingsTitle: {
+    ...typography.h3,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  myListingsScroll: {
+    gap: spacing.sm,
+  },
+  myListingCard: {
+    width: 110,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadows.soft,
+  },
+  myListingImageWrap: {
+    width: '100%',
+    height: 90,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  myListingImage: {
+    width: '100%',
+    height: '100%',
+  },
+  myListingImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  myListingName: {
+    ...typography.caption,
+    fontWeight: '600',
+    paddingHorizontal: spacing.xs,
+    paddingTop: spacing.xs,
   },
   emptyContainer: {
     flex: 1,

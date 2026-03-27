@@ -183,6 +183,30 @@ const HomeScreen = () => {
               <Text style={styles.exploreLabel}>Outfits</Text>
             </TouchableOpacity>
           </View>
+          <View style={styles.exploreRow}>
+            <TouchableOpacity
+              style={styles.exploreCard}
+              onPress={() => navigation.navigate('Sustainability')}
+              accessibilityRole="button"
+              accessibilityLabel="Your Impact"
+            >
+              <View style={styles.exploreIconBox}>
+                <Ionicons name="analytics-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.exploreLabel}>Your Impact</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.exploreCard}
+              onPress={() => navigation.navigate('MarketplaceScreen')}
+              accessibilityRole="button"
+              accessibilityLabel="Marketplace"
+            >
+              <View style={styles.exploreIconBox}>
+                <Ionicons name="storefront-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.exploreLabel}>Marketplace</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

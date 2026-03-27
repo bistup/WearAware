@@ -2,11 +2,13 @@
 // date: 26/11/2025
 // root navigator - switches between auth and main screens based on login state
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { AlertProvider } from '../context/AlertContext';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { setupNotificationListeners } from '../services/notifications';
 
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
@@ -15,6 +17,18 @@ import MainStack from './MainStack';
 import { colors } from '../theme/theme';
 
 const Stack = createNativeStackNavigator();
+
+const NotificationSetup = () => {
+  const navigation = useNavigation();
+  const navRef = useRef({ current: navigation });
+  navRef.current = navigation;
+
+  useEffect(() => {
+    return setupNotificationListeners(navRef);
+  }, []);
+
+  return null;
+};
 
 const RootNavigator = () => {
   const { user, loading } = useAuth();
@@ -29,6 +43,7 @@ const RootNavigator = () => {
 
   return (
     <AlertProvider>
+      {user && <NotificationSetup />}
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <Stack.Screen name="Main" component={MainStack} />

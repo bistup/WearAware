@@ -107,6 +107,7 @@ export const saveScanToBackend = async (scanData) => {
       scanType: scanData.scanType || 'camera',
       imageUrl: scanData.imageUrl,
       thumbnailUrl: scanData.thumbnailUrl,
+      isSecondHand: scanData.isSecondHand || false,
     }),
   });
   return data.success ? { success: true, scanId: data.scanId, scan: data.scan } : data;
@@ -499,7 +500,7 @@ export const importScansToWardrobe = async () => {
 export const fetchMarketplace = async (filter) => {
   const uid = getUid();
   const params = `firebaseUid=${uid}${filter && filter !== 'all' ? `&filter=${filter}` : ''}`;
-  return apiFetch(`${BACKEND_API_URL}/wardrobe/marketplace?${params}`, {}, { items: [] });
+  return apiFetch(`${BACKEND_API_URL}/wardrobe/marketplace?${params}`, {}, { items: [], myListings: [] });
 };
 
 export const listWardrobeItem = async (itemId, availableFor) => {
@@ -633,5 +634,35 @@ export const fetchNearbyShopsForTrade = async (lat, lng) => {
     `${BACKEND_API_URL}/messaging/nearby-shops?lat=${lat}&lng=${lng}&firebaseUid=${getUid()}`,
     {},
     { shops: [] }
+  );
+};
+
+//
+// PUSH NOTIFICATIONS - token registration
+//
+
+export const registerPushToken = async (token, platform) => {
+  return apiFetch(`${BACKEND_API_URL}/notifications/register-token`, {
+    method: 'POST',
+    body: JSON.stringify({ token, platform }),
+  });
+};
+
+export const unregisterPushToken = async (token) => {
+  return apiFetch(`${BACKEND_API_URL}/notifications/unregister-token`, {
+    method: 'DELETE',
+    body: JSON.stringify({ token }),
+  });
+};
+
+//
+// SUSTAINABILITY INSIGHTS - charts and trends
+//
+
+export const fetchSustainabilityInsights = async (period = 'week') => {
+  return apiFetch(
+    `${BACKEND_API_URL}/insights/sustainability?period=${period}&firebaseUid=${getUid()}`,
+    {},
+    { trends: [], totals: {}, grades: [], topFibers: [] }
   );
 };

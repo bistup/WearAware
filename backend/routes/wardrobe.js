@@ -114,6 +114,24 @@ router.get('/marketplace', async (req, res) => {
 
     const result = await pool.query(query, params);
 
+    // also fetch user's own listings so they can see what they've put up
+    let myListings = [];
+    if (userId) {
+      let myQuery = `
+        SELECT wi.* FROM wardrobe_items wi
+        WHERE wi.user_id = $1 AND wi.available_for IS NOT NULL
+      `;
+      const myParams = [userId];
+      if (filter === 'free') {
+        myQuery += ` AND wi.available_for IN ('free', 'both')`;
+      } else if (filter === 'trade') {
+        myQuery += ` AND wi.available_for IN ('trade', 'both')`;
+      }
+      myQuery += ` ORDER BY wi.updated_at DESC`;
+      const myResult = await pool.query(myQuery, myParams);
+      myListings = myResult.rows.map(row => formatItem(row));
+    }
+
     res.json({
       success: true,
       items: result.rows.map(row => ({
@@ -122,6 +140,7 @@ router.get('/marketplace', async (req, res) => {
         ownerAvatarUrl: row.avatar_url,
         ownerFirebaseUid: row.owner_firebase_uid,
       })),
+      myListings,
     });
   } catch (error) {
     console.error('Error fetching marketplace:', error);

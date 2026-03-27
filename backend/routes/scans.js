@@ -13,7 +13,7 @@ const mlService = require('../services/mlService');
 
 // calculates environmental impact from fiber composition and garment weight
 // mUST stay in sync with src/utils/impactCalculator.js
-function calculateEnvironmentalImpact(fibers, weightGrams) {
+function calculateEnvironmentalImpact(fibers, weightGrams, isSecondHand = false) {
   // impact data per kg: water (liters), carbon (kg co2), sustainability score, microplastics, chemicals, etc.
   const fiberImpact = {
     // natural fibers
@@ -105,6 +105,13 @@ function calculateEnvironmentalImpact(fibers, weightGrams) {
     weightedScore -= 1;
   }
 
+  // second-hand bonus: reusing avoids ~80% of production impact
+  if (isSecondHand) {
+    totalWater *= 0.2;
+    totalCarbon *= 0.2;
+    weightedScore += 15;
+  }
+
   // ensure score stays within bounds
   weightedScore = Math.max(0, Math.min(100, weightedScore));
 
@@ -120,6 +127,7 @@ function calculateEnvironmentalImpact(fibers, weightGrams) {
     grade,
     waterUsage: Math.round(totalWater * 100) / 100,
     carbonFootprint: Math.round(totalCarbon * 100) / 100,
+    isSecondHand,
   };
 }
 
@@ -210,6 +218,7 @@ router.post('/', async (req, res) => {
     scanType,
     imageUrl,
     thumbnailUrl,
+    isSecondHand,
   } = req.body;
 
   if (!firebaseUid || !fibers || fibers.length === 0) {
@@ -252,7 +261,7 @@ router.post('/', async (req, res) => {
     }
 
     // calculate impact
-    const impact = calculateEnvironmentalImpact(fibers, itemWeight);
+    const impact = calculateEnvironmentalImpact(fibers, itemWeight, !!isSecondHand);
     
     console.log('Calculating impact for:', { fibers, itemWeight, impact });
 
@@ -261,8 +270,8 @@ router.post('/', async (req, res) => {
       `INSERT INTO scans
        (user_id, firebase_uid, brand, item_type, item_weight_grams, fibers,
         environmental_score, environmental_grade, raw_text, scan_type,
-        water_usage_liters, carbon_footprint_kg, image_url, thumbnail_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        water_usage_liters, carbon_footprint_kg, image_url, thumbnail_url, is_second_hand)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
       [
         userId,
@@ -279,6 +288,7 @@ router.post('/', async (req, res) => {
         impact.carbonFootprint,
         imageUrl || null,
         thumbnailUrl || null,
+        !!isSecondHand,
       ]
     );
 
@@ -298,6 +308,7 @@ router.post('/', async (req, res) => {
         rawText: result.rows[0].raw_text,
         imageUrl: result.rows[0].image_url,
         thumbnailUrl: result.rows[0].thumbnail_url,
+        isSecondHand: result.rows[0].is_second_hand || false,
         createdAt: result.rows[0].created_at,
       },
       scanId: result.rows[0].id,

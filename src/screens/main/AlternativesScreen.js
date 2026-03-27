@@ -22,6 +22,7 @@ const AlternativesScreen = () => {
   const [secondHandResults, setSecondHandResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('web'); // 'web', 'secondhand', or 'visual'
+  const [selectedGender, setSelectedGender] = useState(scanData?.gender || null);
 
   const isVisualScan = scanData?.scanType === 'visual' || scanData?.scan_type === 'visual';
 
@@ -34,7 +35,7 @@ const AlternativesScreen = () => {
 
   useEffect(() => {
     loadRecommendations();
-  }, []);
+  }, [selectedGender]);
 
   const loadRecommendations = async () => {
     setLoading(true);
@@ -48,12 +49,11 @@ const AlternativesScreen = () => {
 
     // get image URL for visual-aware search (CLIP will describe the garment)
     const imageUrl = scanData?.image_url || scanData?.imageUrl || null;
-    const gender = scanData?.gender || null;
 
     // load web search, second-hand, and visual recommendations in parallel
     const promises = [
-      searchWebAlternatives(itemType, primaryFiber, imageUrl, gender),
-      searchSecondHand(itemType, primaryFiber, imageUrl, gender),
+      searchWebAlternatives(itemType, primaryFiber, imageUrl, selectedGender),
+      searchSecondHand(itemType, primaryFiber, imageUrl, selectedGender),
     ];
 
     if (isVisualScan && scanId) {
@@ -157,6 +157,25 @@ const AlternativesScreen = () => {
             </View>
           </Card>
         )}
+
+        {/* Gender Filter */}
+        <View style={styles.genderFilter}>
+          {[
+            { key: null, label: 'All' },
+            { key: "men's", label: "Men's" },
+            { key: "women's", label: "Women's" },
+          ].map(g => (
+            <TouchableOpacity
+              key={g.key || 'all'}
+              style={[styles.genderBtn, selectedGender === g.key && styles.genderBtnActive]}
+              onPress={() => setSelectedGender(g.key)}
+            >
+              <Text style={[styles.genderBtnText, selectedGender === g.key && styles.genderBtnTextActive]}>
+                {g.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {/* Section Toggle Tabs */}
         {tabCount > 1 && (
@@ -472,6 +491,32 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.background,
     fontWeight: '600',
+  },
+  genderFilter: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  genderBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  genderBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  genderBtnText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  genderBtnTextActive: {
+    color: colors.background,
+    fontWeight: '700',
   },
   sectionToggle: {
     flexDirection: 'row',

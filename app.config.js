@@ -50,6 +50,12 @@ export default {
             'Allow WearAware to use your location to find nearby charity shops.',
         },
       ],
+      [
+        'expo-notifications',
+        {
+          color: '#1A6B4A',
+        },
+      ],
     ],
     extra: {
       eas: {

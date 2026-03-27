@@ -323,7 +323,7 @@ const FIBER_IMPACTS = {
 };
 
 // calculate overall sustainability score from fiber mix
-export const calculateImpactScore = (fibers, weightGrams = 300) => {
+export const calculateImpactScore = (fibers, weightGrams = 300, isSecondHand = false) => {
   if (!fibers || fibers.length === 0) {
     return { score: 50, grade: 'C', waterUsage: 0, carbonFootprint: 0 }; // default middle grade
   }
@@ -389,6 +389,13 @@ export const calculateImpactScore = (fibers, weightGrams = 300) => {
     totalScore -= 3;
   } else if (totalWaterPollution > 50) {
     totalScore -= 1;
+  }
+
+  // second-hand bonus: reusing avoids ~80% of production impact
+  if (isSecondHand) {
+    totalWater *= 0.2;
+    totalCarbon *= 0.2;
+    totalScore += 15;
   }
 
   // ensure score stays within bounds

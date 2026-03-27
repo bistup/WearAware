@@ -196,6 +196,13 @@ const WardrobeScreen = () => {
               <Text style={styles.gradeBadgeText}>{item.environmentalGrade}</Text>
             </View>
           )}
+          {/* Listed badge */}
+          {!!item.availableFor && (
+            <View style={styles.listedBadge}>
+              <Ionicons name="storefront" size={10} color="#fff" />
+              <Text style={styles.listedBadgeText}>{item.availableFor === 'free' ? 'Free' : 'Trade'}</Text>
+            </View>
+          )}
           {/* Favorite heart */}
           <TouchableOpacity
             style={[styles.heartButton, item.isFavorite && styles.heartButtonActive]}
@@ -526,6 +533,23 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 0.5,
+  },
+  listedBadge: {
+    position: 'absolute',
+    bottom: spacing.xs,
+    left: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: borderRadius.xs,
+  },
+  listedBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
   },
   heartButton: {
     position: 'absolute',

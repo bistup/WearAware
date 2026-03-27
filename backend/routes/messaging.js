@@ -7,6 +7,7 @@ const router = express.Router();
 const pool = require('../database/db');
 const { getUserId } = require('../database/db');
 
+const { sendPushNotification } = require('../services/pushService');
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
 // helper: get or create a conversation between two users
@@ -277,6 +278,23 @@ router.post('/conversations/:id/messages', async (req, res) => {
     // update conversation timestamp
     await pool.query('UPDATE conversations SET last_message_at = NOW() WHERE id = $1', [conversationId]);
 
+    // push notification to the other user
+    const convData = await pool.query('SELECT user1_id, user2_id FROM conversations WHERE id = $1', [conversationId]);
+    if (convData.rows.length > 0) {
+      const { user1_id, user2_id } = convData.rows[0];
+      const recipientId = user1_id === userId ? user2_id : user1_id;
+      const senderProfile = await pool.query(
+        `SELECT COALESCE(up.display_name, u.email) AS name FROM users u LEFT JOIN user_profiles up ON up.user_id = u.id WHERE u.id = $1`,
+        [userId]
+      );
+      const senderName = senderProfile.rows[0]?.name || 'Someone';
+      sendPushNotification(recipientId, {
+        title: senderName,
+        body: content.trim().length > 100 ? content.trim().slice(0, 100) + '...' : content.trim(),
+        data: { type: 'message', conversationId },
+      });
+    }
+
     res.json({ success: true, message: result.rows[0] });
   } catch (error) {
     console.error('Error sending message:', error);
@@ -358,6 +376,18 @@ router.post('/trade-request', async (req, res) => {
     );
     await pool.query('UPDATE conversations SET last_message_at = NOW() WHERE id = $1', [conversationId]);
 
+    // notify recipient of trade request
+    const senderProfile = await pool.query(
+      `SELECT COALESCE(up.display_name, u.email) AS name FROM users u LEFT JOIN user_profiles up ON up.user_id = u.id WHERE u.id = $1`,
+      [userId]
+    );
+    const senderName = senderProfile.rows[0]?.name || 'Someone';
+    sendPushNotification(targetUserId, {
+      title: 'Trade Request',
+      body: `${senderName} ${tradeLabel}`,
+      data: { type: 'trade', tradeId: trade.rows[0].id, conversationId },
+    });
+
     res.json({ success: true, tradeRequest: trade.rows[0], conversationId });
   } catch (error) {
     console.error('Error creating trade request:', error);
@@ -436,6 +466,13 @@ router.put('/trade-request/:id/respond', async (req, res) => {
       );
       await pool.query('UPDATE conversations SET last_message_at = NOW() WHERE id = $1', [tr.conversation_id]);
 
+      // notify requester of decline
+      sendPushNotification(tr.requester_id, {
+        title: 'Trade Declined',
+        body: 'Your trade request was declined.',
+        data: { type: 'trade', tradeId: tradeId, conversationId: tr.conversation_id },
+      });
+
       return res.json({ success: true, status: 'declined' });
     }
 
@@ -487,6 +524,13 @@ router.put('/trade-request/:id/respond', async (req, res) => {
         [tr.conversation_id, userId, 'accepted the trade! Check the trade details for your dropbox PIN.', 'trade_update', tradeId]
       );
       await pool.query('UPDATE conversations SET last_message_at = NOW() WHERE id = $1', [tr.conversation_id]);
+
+      // notify requester of acceptance
+      sendPushNotification(tr.requester_id, {
+        title: 'Trade Accepted!',
+        body: 'Your trade request was accepted. Check the details for your dropbox PIN.',
+        data: { type: 'trade', tradeId: tradeId, conversationId: tr.conversation_id },
+      });
 
       // fetch updated trade
       const updated = await pool.query('SELECT * FROM trade_requests WHERE id = $1', [tradeId]);
@@ -567,6 +611,15 @@ router.put('/trade-request/:id/complete', async (req, res) => {
       [trade.rows[0].conversation_id, userId, 'marked the trade as completed!', 'trade_update', tradeId]
     );
     await pool.query('UPDATE conversations SET last_message_at = NOW() WHERE id = $1', [trade.rows[0].conversation_id]);
+
+    // notify the other party
+    const tr = trade.rows[0];
+    const otherUserId = tr.requester_id === userId ? tr.recipient_id : tr.requester_id;
+    sendPushNotification(otherUserId, {
+      title: 'Trade Completed',
+      body: 'The trade has been marked as completed!',
+      data: { type: 'trade', tradeId: tradeId, conversationId: tr.conversation_id },
+    });
 
     res.json({ success: true });
   } catch (error) {

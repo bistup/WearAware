@@ -28,6 +28,7 @@ const ManualInputScreen = () => {
   const [brand, setBrand] = useState('');
   const [itemType, setItemType] = useState('');
   const [selectedGender, setSelectedGender] = useState(null); // 'mens' or 'womens'
+  const [isSecondHand, setIsSecondHand] = useState(false);
   const [fibers, setFibers] = useState([{ name: '', percentage: '' }]);
   const [loading, setLoading] = useState(false);
   const [showFiberPicker, setShowFiberPicker] = useState(false);
@@ -115,7 +116,7 @@ const ManualInputScreen = () => {
     const itemWeightGrams = selectedItem ? selectedItem.weight : 300;
 
     // calculate impact with weight
-    const { score, grade, waterUsage, carbonFootprint } = calculateImpactScore(cleanedFibers, itemWeightGrams);
+    const { score, grade, waterUsage, carbonFootprint } = calculateImpactScore(cleanedFibers, itemWeightGrams, isSecondHand);
 
     // upload garment image if provided (and user is logged in)
     let imageUrl = null;
@@ -151,6 +152,7 @@ const ManualInputScreen = () => {
       imageUrl,
       thumbnailUrl,
       gender: selectedGender,
+      isSecondHand,
     };
 
     const result = await saveScanToBackend(scanData);
@@ -211,6 +213,21 @@ const ManualInputScreen = () => {
               <Text style={[styles.genderButtonText, selectedGender === 'womens' && styles.genderButtonTextActive]}>Women's</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>Condition</Text>
+          <TouchableOpacity
+            style={[styles.secondHandToggle, isSecondHand && styles.secondHandToggleActive]}
+            onPress={() => setIsSecondHand(!isSecondHand)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name={isSecondHand ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={isSecondHand ? colors.background : colors.textSecondary} />
+            <Text style={[styles.secondHandText, isSecondHand && styles.secondHandTextActive]}>Second-hand / Pre-owned</Text>
+          </TouchableOpacity>
+          {isSecondHand && (
+            <Text style={styles.secondHandHint}>Score boosted — reusing avoids ~80% of production impact</Text>
+          )}
         </View>
 
         <Text style={styles.sectionTitle}>Fiber Composition</Text>
@@ -383,6 +400,35 @@ const getStyles = (colors, typography, spacing, borderRadius) => StyleSheet.crea
   },
   genderButtonTextActive: {
     color: colors.primary,
+  },
+  secondHandToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  secondHandToggleActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  secondHandText: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  secondHandTextActive: {
+    color: colors.background,
+  },
+  secondHandHint: {
+    ...typography.caption,
+    color: colors.primary,
+    marginTop: spacing.xs,
+    fontWeight: '500',
   },
   sectionTitle: {
     ...typography.h3,

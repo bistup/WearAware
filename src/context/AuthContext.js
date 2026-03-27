@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { syncUserWithBackend } from '../services/api';
+import { registerForPushNotifications, unregisterPushNotifications } from '../services/notifications';
 
 const AuthContext = createContext();
 
@@ -31,6 +32,7 @@ export const AuthProvider = ({ children }) => {
       // sync logged-in users with backend
       if (currentUser && !currentUser.isAnonymous) {
         await syncUserWithBackend(currentUser);
+        registerForPushNotifications();
       }
       
       setLoading(false);
@@ -73,6 +75,7 @@ export const AuthProvider = ({ children }) => {
   // sign out current user
   const logout = async () => {
     try {
+      await unregisterPushNotifications();
       await signOut(auth);
       setIsGuest(false);
       return { success: true };

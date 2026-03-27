@@ -227,10 +227,18 @@ const ScanResultScreen = () => {
     color: careInstructions.filter(i => i.type === 'color'),
   } : {};
 
-  const waterVal = water_usage_liters != null && typeof water_usage_liters === 'number'
-    ? water_usage_liters.toFixed(1) + 'L' : '--';
-  const carbonVal = carbon_footprint_kg != null && typeof carbon_footprint_kg === 'number'
-    ? carbon_footprint_kg.toFixed(2) + 'kg' : '--';
+  const formatWater = (val) => {
+    if (val == null || typeof val !== 'number') return '--';
+    if (val >= 1000) return (val / 1000).toFixed(1) + 'kL';
+    return val.toFixed(1) + 'L';
+  };
+  const formatCarbon = (val) => {
+    if (val == null || typeof val !== 'number') return '--';
+    if (val >= 100) return val.toFixed(0) + 'kg';
+    return val.toFixed(2) + 'kg';
+  };
+  const waterVal = formatWater(water_usage_liters);
+  const carbonVal = formatCarbon(carbon_footprint_kg);
   const weightVal = item_weight_grams ? item_weight_grams + 'g' : '--';
 
   return (
@@ -348,17 +356,17 @@ const ScanResultScreen = () => {
             <View style={styles.statsRow}>
               <View style={styles.statCard}>
                 <Ionicons name="water-outline" size={20} color={colors.primary} style={{ marginBottom: spacing.xs }} />
-                <Text style={styles.statValue}>{waterVal}</Text>
+                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{waterVal}</Text>
                 <Text style={styles.statLabel}>Water</Text>
               </View>
               <View style={styles.statCard}>
                 <Ionicons name="cloud-outline" size={20} color={colors.textSecondary} style={{ marginBottom: spacing.xs }} />
-                <Text style={styles.statValue}>{carbonVal}</Text>
+                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{carbonVal}</Text>
                 <Text style={styles.statLabel}>CO₂</Text>
               </View>
               <View style={styles.statCard}>
                 <Ionicons name="scale-outline" size={20} color={colors.textSecondary} style={{ marginBottom: spacing.xs }} />
-                <Text style={styles.statValue}>{weightVal}</Text>
+                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{weightVal}</Text>
                 <Text style={styles.statLabel}>Weight</Text>
               </View>
             </View>
@@ -911,6 +919,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
     alignItems: 'center',
   },
   statValue: {

@@ -32,6 +32,7 @@ const CameraScreen = () => {
   const [brandName, setBrandName] = useState('');
   const [selectedItemType, setSelectedItemType] = useState(null);
   const [selectedGender, setSelectedGender] = useState(null); // 'mens' or 'womens'
+  const [isSecondHand, setIsSecondHand] = useState(false);
   const [showItemTypeModal, setShowItemTypeModal] = useState(false);
   const cameraRef = useRef(null);
 
@@ -269,6 +270,7 @@ const CameraScreen = () => {
         imageUrl: uploadResult.success ? uploadResult.imageUrl : null,
         thumbnailUrl: uploadResult.success ? uploadResult.thumbnailUrl : null,
         gender: selectedGender,
+        isSecondHand,
       };
 
       // save to backend (backend will also extract CLIP embedding if image provided)
@@ -376,7 +378,19 @@ const CameraScreen = () => {
                   </TouchableOpacity>
                 </View>
 
-                <Text style={styles.inputLabel}>Item Type</Text>
+                <TouchableOpacity
+                  style={[styles.secondHandToggle, isSecondHand && styles.secondHandToggleActive]}
+                  onPress={() => setIsSecondHand(!isSecondHand)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name={isSecondHand ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={isSecondHand ? colors.background : colors.textSecondary} />
+                  <Text style={[styles.secondHandText, isSecondHand && styles.secondHandTextActive]}>Second-hand / Pre-owned</Text>
+                </TouchableOpacity>
+                {isSecondHand && (
+                  <Text style={styles.secondHandHint}>Score boosted — reusing avoids ~80% of production impact</Text>
+                )}
+
+                <Text style={[styles.inputLabel, { marginTop: spacing.md }]}>Item Type</Text>
                 <TouchableOpacity
                   style={styles.itemTypePickerButton}
                   onPress={() => setShowItemTypeModal(true)}
@@ -769,6 +783,36 @@ const styles = StyleSheet.create({
   },
   genderButtonTextActive: {
     color: colors.primary,
+  },
+  secondHandToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginTop: spacing.sm,
+  },
+  secondHandToggleActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  secondHandText: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  secondHandTextActive: {
+    color: colors.background,
+  },
+  secondHandHint: {
+    ...typography.caption,
+    color: colors.primary,
+    marginTop: spacing.xs,
+    fontWeight: '500',
   },
   itemTypePickerButton: {
     flexDirection: 'row',

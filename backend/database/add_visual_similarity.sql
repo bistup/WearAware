@@ -2,9 +2,9 @@
 -- Adds image URLs and embeddings for visual similarity matching
 -- Run this in DBeaver while connected to your postgres database
 
--- ============================================================================
+-- 
 -- 1. ADD COLUMNS TO SCANS TABLE
--- ============================================================================
+-- 
 
 -- Add image storage columns to scans
 ALTER TABLE scans
@@ -18,9 +18,9 @@ CREATE INDEX IF NOT EXISTS idx_scans_has_image ON scans(image_url) WHERE image_u
 -- Add comment
 COMMENT ON COLUMN scans.image_embedding IS '512-dimensional CLIP embedding stored as JSON array';
 
--- ============================================================================
+-- 
 -- 2. ADD COLUMNS TO PRODUCT_RECOMMENDATIONS TABLE
--- ============================================================================
+-- 
 
 -- Add embedding and thumbnail columns (image_url already exists)
 ALTER TABLE product_recommendations
@@ -33,9 +33,9 @@ CREATE INDEX IF NOT EXISTS idx_recommendations_has_embedding ON product_recommen
 -- Add comment
 COMMENT ON COLUMN product_recommendations.image_embedding IS '512-dimensional CLIP embedding stored as JSON array';
 
--- ============================================================================
+-- 
 -- 3. UPDATE SCAN_TYPE ENUM (if needed)
--- ============================================================================
+-- 
 
 -- Visual scans don't have fiber data, so environmental_score can be NULL for them
 ALTER TABLE scans ALTER COLUMN environmental_score DROP NOT NULL;
@@ -45,9 +45,9 @@ ALTER TABLE scans ALTER COLUMN fibers DROP NOT NULL;
 -- Add check to ensure visual scans have images
 -- (We'll enforce this in the application layer)
 
--- ============================================================================
+-- 
 -- VERIFICATION QUERIES
--- ============================================================================
+-- 
 
 -- Verify columns were added
 SELECT column_name, data_type, is_nullable

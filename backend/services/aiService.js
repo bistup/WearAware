@@ -4,7 +4,7 @@
 
 const fetch = require('node-fetch');
 
-const OLLAMA_HOST = process.env.OLLAMA_HOST || 'localhost';
+const OLLAMA_HOST = process.env.OLLAMA_HOST || '127.0.0.1';
 const OLLAMA_PORT = process.env.OLLAMA_PORT || 11434;
 const OLLAMA_URL = `http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/generate`;
 const MODEL = 'llama3.2:1b'; // 1B parameter model - fast and lightweight
@@ -140,7 +140,7 @@ const generateTemplateSummary = (scanData) => {
  */
 const checkOllamaHealth = async () => {
   try {
-    const response = await fetch(`http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/tags`, {
+    const response = await fetch(`http://127.0.0.1:${OLLAMA_PORT}/api/tags`, {
       method: 'GET',
       timeout: 5000,
     });
