@@ -16,6 +16,7 @@ const ItemTypePickerModal = ({ visible, onClose, onSelect, selectedType }) => {
       transparent={true}
       animationType="slide" // slides up from bottom
       onRequestClose={onClose}
+      accessibilityViewIsModal={true}
     >
       <View style={styles.overlay}>
         <View style={styles.content}>
@@ -31,6 +32,9 @@ const ItemTypePickerModal = ({ visible, onClose, onSelect, selectedType }) => {
                   selectedType === item.name && styles.selectedOption, // highlight selected
                 ]}
                 onPress={() => onSelect(item)}
+                accessibilityRole="radio"
+                accessibilityLabel={`${item.name}, approximately ${item.weight} grams`}
+                accessibilityState={{ checked: selectedType === item.name }}
               >
                 <View>
                   <Text style={[

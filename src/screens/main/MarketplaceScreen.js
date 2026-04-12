@@ -304,6 +304,7 @@ const MarketplaceScreen = () => {
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={renderMyListings}
+          accessibilityLabel="Marketplace listings"
           ListEmptyComponent={myListings.length === 0 ? renderEmpty : null}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />

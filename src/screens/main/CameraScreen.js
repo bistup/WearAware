@@ -343,6 +343,8 @@ const CameraScreen = () => {
                     value={brandName}
                     onChangeText={setBrandName}
                     autoCapitalize="words"
+                    accessibilityLabel="Brand name"
+                    accessibilityHint="Enter the clothing brand"
                   />
                 </View>
 

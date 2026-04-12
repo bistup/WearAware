@@ -1,5 +1,7 @@
 import 'dotenv/config';
 
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyBQqrohni1cuiDmYwcFePiFYisClQ6j6Hg';
+
 export default {
   expo: {
     name: 'WearAware',
@@ -17,7 +19,7 @@ export default {
           'WearAware needs your location to find nearby charity shops.',
       },
       config: {
-        googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY,
       },
     },
     android: {
@@ -31,7 +33,7 @@ export default {
       ],
       config: {
         googleMaps: {
-          apiKey: process.env.GOOGLE_MAPS_API_KEY,
+          apiKey: GOOGLE_MAPS_API_KEY,
         },
       },
     },

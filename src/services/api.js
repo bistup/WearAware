@@ -137,6 +137,14 @@ export const deleteScan = async (scanId) => {
   });
 };
 
+// full account deletion - removes all data from the backend database
+// the caller must also delete the firebase auth account after this returns
+export const deleteMyAccount = async () => {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return { success: false, error: 'Unauthorized' };
+  return apiFetch(`${BACKEND_API_URL}/users/my-account`, { method: 'DELETE' });
+};
+
 export const updateScan = async (scanId, updatedData) => {
   const user = auth.currentUser;
   if (!user || user.isAnonymous) return { success: false, error: 'Unauthorized' };
@@ -255,6 +263,13 @@ export const fetchMyPosts = async (page = 1) => {
 export const toggleLike = async (postId) => {
   return apiFetch(`${BACKEND_API_URL}/social/posts/${postId}/like`, {
     method: 'POST',
+    body: JSON.stringify({ firebaseUid: getUid() }),
+  });
+};
+
+export const deletePost = async (postId) => {
+  return apiFetch(`${BACKEND_API_URL}/social/posts/${postId}`, {
+    method: 'DELETE',
     body: JSON.stringify({ firebaseUid: getUid() }),
   });
 };
@@ -395,13 +410,6 @@ export const createVisualScan = async (imageUrl, itemType, brand) => {
   });
 };
 
-export const fetchVisualRecommendations = async (scanId) => {
-  return apiFetch(
-    `${BACKEND_API_URL}/scans/visual-recommendations/${scanId}`,
-    {},
-    { recommendations: [] }
-  );
-};
 
 // 
 // WEB SEARCH - live product search from the web

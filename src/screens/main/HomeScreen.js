@@ -56,7 +56,8 @@ const HomeScreen = () => {
           <TouchableOpacity
             style={styles.messagesBtn}
             onPress={() => navigation.navigate('Messages')}
-            accessibilityLabel="Messages"
+            accessibilityRole="button"
+            accessibilityLabel={unreadCount > 0 ? `Messages, ${unreadCount} unread` : 'Messages'}
           >
             <Ionicons name="chatbubbles-outline" size={24} color={colors.textPrimary} />
             {unreadCount > 0 && (
@@ -78,9 +79,10 @@ const HomeScreen = () => {
             accessibilityHint="Open the camera to scan a clothing care label"
           >
             <View style={[styles.actionIconBase, styles.primaryActionIcon]}>
-              <Ionicons name="camera" size={30} color={colors.background} />
+              <Ionicons name="camera" size={48} color={colors.background} />
             </View>
             <Text style={styles.primaryActionTitle}>Scan Label</Text>
+            <Text style={styles.primaryActionSubtitle}>Tap to scan a clothing care label</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -291,16 +293,17 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     height: 250,
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 0,
     ...shadows.soft,
   },
   actionIconBase: {
-    width: 52,
-    height: 52,
-    borderRadius: borderRadius.md,
+    width: 88,
+    height: 88,
+    borderRadius: borderRadius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -308,8 +311,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
   primaryActionTitle: {
-    ...typography.h2,
+    ...typography.h1,
     color: colors.background,
+    textAlign: 'center',
+  },
+  primaryActionSubtitle: {
+    ...typography.body,
+    color: 'rgba(255,255,255,0.75)',
+    textAlign: 'center',
   },
   secondaryAction: {
     backgroundColor: colors.surface,

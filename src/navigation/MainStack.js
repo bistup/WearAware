@@ -46,6 +46,9 @@ import MessagesScreen from '../screens/main/MessagesScreen';
 import ChatScreen from '../screens/main/ChatScreen';
 import TradeScreen from '../screens/main/TradeScreen';
 
+// privacy & gdpr
+import DataPrivacyScreen from '../screens/main/DataPrivacyScreen';
+
 const Stack = createNativeStackNavigator();
 
 const MainStack = () => {
@@ -97,6 +100,9 @@ const MainStack = () => {
       <Stack.Screen name="Messages" component={MessagesScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
       <Stack.Screen name="Trade" component={TradeScreen} />
+
+      {/* Privacy & GDPR */}
+      <Stack.Screen name="DataPrivacy" component={DataPrivacyScreen} />
     </Stack.Navigator>
   );
 };

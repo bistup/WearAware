@@ -97,6 +97,9 @@ const ProfileScreen = () => {
               onValueChange={toggleThemeMode}
               trackColor={{ false: colors.border, true: colors.primaryLight }}
               thumbColor={isDarkMode ? colors.primary : colors.surface}
+              accessibilityRole="switch"
+              accessibilityLabel="Dark mode"
+              accessibilityState={{ checked: isDarkMode }}
             />
           </View>
         </Card>
@@ -128,6 +131,14 @@ const ProfileScreen = () => {
             />
           </>
         )}
+
+        <Button
+          title="Privacy & Data"
+          onPress={() => navigation.navigate('DataPrivacy')}
+          variant="secondary"
+          style={styles.actionButton}
+          accessibilityHint="View how your data is stored and delete your images"
+        />
 
         <Button
           title="Logout"

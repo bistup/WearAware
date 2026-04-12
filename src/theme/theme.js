@@ -21,7 +21,7 @@ export const colors = {
   // text hierarchy
   textPrimary: '#0A1A14',       // near-black primary text
   textSecondary: '#5E7068',     // secondary labels
-  textTertiary: '#94A39D',      // hints, placeholders
+  textTertiary: '#6B7D76',      // hints, placeholders (darkened for WCAG AA contrast)
 
   // green accent palette
   primary: '#1A6B4A',           // deep forest green
@@ -69,7 +69,7 @@ const DARK_COLORS = {
 
   textPrimary: '#EAF3EF',
   textSecondary: '#AFC3BA',
-  textTertiary: '#829A90',
+  textTertiary: '#9BB5AC',      // darkened for WCAG AA contrast on dark background
 
   primary: '#49B386',
   primaryLight: 'rgba(73, 179, 134, 0.18)',

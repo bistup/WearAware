@@ -3,28 +3,25 @@
 // alternatives screen - shows sustainable product recommendations after a scan
 // users can compare, save to wishlist, and visit external shops
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Card from '../../components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, getGradeColor } from '../../theme/theme';
-import { fetchVisualRecommendations, searchWebAlternatives, searchSecondHand } from '../../services/api';
+import { searchWebAlternatives, searchSecondHand } from '../../services/api';
 
 const AlternativesScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { scanData, scanId } = route.params || {};
 
-  const [visualRecommendations, setVisualRecommendations] = useState([]);
   const [webResults, setWebResults] = useState([]);
   const [secondHandResults, setSecondHandResults] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState('web'); // 'web', 'secondhand', or 'visual'
+  const [activeSection, setActiveSection] = useState('web'); // 'web' or 'secondhand'
   const [selectedGender, setSelectedGender] = useState(scanData?.gender || null);
-
-  const isVisualScan = scanData?.scanType === 'visual' || scanData?.scan_type === 'visual';
 
   const scannedItem = scanData ? {
     waterUsage: scanData.water_usage_liters || scanData.waterUsage || 0,
@@ -47,73 +44,34 @@ const AlternativesScreen = () => {
       ? (typeof fibers[0] === 'string' ? fibers[0] : fibers[0]?.name)
       : null;
 
-    // get image URL for visual-aware search (CLIP will describe the garment)
     const imageUrl = scanData?.image_url || scanData?.imageUrl || null;
 
-    // load web search, second-hand, and visual recommendations in parallel
-    const promises = [
+    const [webResult, ebayResult] = await Promise.allSettled([
       searchWebAlternatives(itemType, primaryFiber, imageUrl, selectedGender),
       searchSecondHand(itemType, primaryFiber, imageUrl, selectedGender),
-    ];
+    ]);
 
-    if (isVisualScan && scanId) {
-      promises.push(fetchVisualRecommendations(scanId));
-    }
-
-    const results = await Promise.allSettled(promises);
-
-    // web search results
-    const webResult = results[0];
     if (webResult.status === 'fulfilled' && webResult.value.success) {
       setWebResults(webResult.value.results || []);
     }
 
-    // second-hand eBay results
-    const ebayResult = results[1];
     if (ebayResult.status === 'fulfilled' && ebayResult.value.success) {
       setSecondHandResults(ebayResult.value.results || []);
-    }
-
-    // visual recommendations (if applicable)
-    if (results[2]) {
-      const visualResult = results[2];
-      if (visualResult.status === 'fulfilled' && visualResult.value.success) {
-        const normalized = (visualResult.value.recommendations || []).map(rec => ({
-          ...rec,
-          grade: rec.sustainabilityGrade || rec.grade,
-          score: rec.sustainabilityScore || rec.score,
-          waterUsage: rec.waterUsageLiters || rec.waterUsage || 0,
-          carbonFootprint: rec.carbonFootprintKg || rec.carbonFootprint || 0,
-          price: rec.priceUsd || rec.price || 0,
-        }));
-        setVisualRecommendations(normalized);
-        setActiveSection('visual');
-      }
-    }
-
-    // default to web tab if we have web results
-    if (webResult.status === 'fulfilled' && (webResult.value.results || []).length > 0 && !isVisualScan) {
-      setActiveSection('web');
     }
 
     setLoading(false);
   };
 
   const getDisplayList = () => {
-    if (activeSection === 'web') return webResults;
     if (activeSection === 'secondhand') return secondHandResults;
-    if (activeSection === 'visual') return visualRecommendations;
     return webResults;
   };
 
   const renderHeader = () => {
     const displayList = getDisplayList();
 
-    // determine which tabs to show
     const hasWeb = webResults.length > 0;
     const hasSecondHand = secondHandResults.length > 0;
-    const hasVisual = isVisualScan && visualRecommendations.length > 0;
-    const tabCount = [hasWeb, hasSecondHand, hasVisual].filter(Boolean).length;
 
     return (
       <View>
@@ -129,17 +87,13 @@ const AlternativesScreen = () => {
           </View>
         </TouchableOpacity>
 
-        <Text style={styles.title}>
-          {isVisualScan ? 'Similar Alternatives' : 'Better Alternatives'}
-        </Text>
+        <Text style={styles.title}>Better Alternatives</Text>
         <Text style={styles.subtitle}>
-          {isVisualScan
-            ? 'Visually similar sustainable options'
-            : `Sustainable options for your ${scanData?.item_type || scanData?.itemType || 'item'}`}
+          {`Sustainable options for your ${scanData?.item_type || scanData?.itemType || 'item'}`}
         </Text>
 
         {/* Current Scan Summary */}
-        {scannedItem && !isVisualScan && (
+        {scannedItem && (
           <Card style={styles.currentScanCard}>
             <Text style={styles.currentLabel}>Your Scanned Item</Text>
             <View style={styles.currentRow}>
@@ -178,43 +132,29 @@ const AlternativesScreen = () => {
         </View>
 
         {/* Section Toggle Tabs */}
-        {tabCount > 1 && (
+        {hasWeb && hasSecondHand && (
           <View style={styles.sectionToggle}>
-            {hasWeb && (
-              <TouchableOpacity
-                style={[styles.sectionTab, activeSection === 'web' && styles.sectionTabActive]}
-                onPress={() => setActiveSection('web')}
-              >
-                <Text style={[styles.sectionTabText, activeSection === 'web' && styles.sectionTabTextActive]}>
-                  Web Results
-                </Text>
-              </TouchableOpacity>
-            )}
-            {hasSecondHand && (
-              <TouchableOpacity
-                style={[styles.sectionTab, activeSection === 'secondhand' && styles.sectionTabActive]}
-                onPress={() => setActiveSection('secondhand')}
-              >
-                <Text style={[styles.sectionTabText, activeSection === 'secondhand' && styles.sectionTabTextActive]}>
-                  Second Hand
-                </Text>
-              </TouchableOpacity>
-            )}
-            {hasVisual && (
-              <TouchableOpacity
-                style={[styles.sectionTab, activeSection === 'visual' && styles.sectionTabActive]}
-                onPress={() => setActiveSection('visual')}
-              >
-                <Text style={[styles.sectionTabText, activeSection === 'visual' && styles.sectionTabTextActive]}>
-                  Visual Match
-                </Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[styles.sectionTab, activeSection === 'web' && styles.sectionTabActive]}
+              onPress={() => setActiveSection('web')}
+            >
+              <Text style={[styles.sectionTabText, activeSection === 'web' && styles.sectionTabTextActive]}>
+                Web Results
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.sectionTab, activeSection === 'secondhand' && styles.sectionTabActive]}
+              onPress={() => setActiveSection('secondhand')}
+            >
+              <Text style={[styles.sectionTabText, activeSection === 'secondhand' && styles.sectionTabTextActive]}>
+                Second Hand
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
         <Text style={styles.resultsLabel}>
-          {displayList.length} {activeSection === 'web' ? 'product' : activeSection === 'secondhand' ? 'second-hand item' : 'sustainable alternative'}{displayList.length !== 1 ? 's' : ''} found
+          {displayList.length} {activeSection === 'secondhand' ? 'second-hand item' : 'product'}{displayList.length !== 1 ? 's' : ''} found
         </Text>
       </View>
     );
@@ -277,6 +217,8 @@ const AlternativesScreen = () => {
           style={styles.webVisitButton}
           onPress={() => Linking.openURL(item.link)}
           activeOpacity={0.7}
+          accessibilityRole="link"
+          accessibilityLabel={`View product on ${item.siteName || 'store'}`}
         >
           <Text style={styles.webVisitText}>View Product</Text>
         </TouchableOpacity>
@@ -316,6 +258,8 @@ const AlternativesScreen = () => {
           style={styles.webVisitButton}
           onPress={() => Linking.openURL(item.link)}
           activeOpacity={0.7}
+          accessibilityRole="link"
+          accessibilityLabel={`View ${item.title || 'item'} on eBay`}
         >
           <Text style={styles.webVisitText}>View on eBay</Text>
         </TouchableOpacity>
@@ -324,35 +268,10 @@ const AlternativesScreen = () => {
   );
 
   const renderItem = ({ item }) => {
-    if (activeSection === 'web') {
-      return renderWebResultCard({ item });
-    }
     if (activeSection === 'secondhand') {
       return renderSecondHandCard({ item });
     }
-
-    // visual match - render as a web-style card with match percentage
-    return (
-      <View style={styles.webCard}>
-        {item.matchPercentage != null && (
-          <View style={styles.matchBadge}>
-            <Text style={styles.matchBadgeText}>{item.matchPercentage}% visual match</Text>
-          </View>
-        )}
-        <View style={styles.webCardContent}>
-          {item.brand && (
-            <Text style={styles.webBrand}>{item.brand}</Text>
-          )}
-          <Text style={styles.webTitle} numberOfLines={2}>{item.productName || item.brand || 'Alternative'}</Text>
-          <View style={styles.webFooter}>
-            <View style={[styles.currentGrade, { backgroundColor: getGradeColor(item.grade) }]}>
-              <Text style={styles.currentGradeText}>{item.grade}</Text>
-            </View>
-            <Text style={styles.webSite}>Score: {item.score}/100</Text>
-          </View>
-        </View>
-      </View>
-    );
+    return renderWebResultCard({ item });
   };
 
   return (

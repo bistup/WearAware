@@ -157,6 +157,8 @@ const EditProfileScreen = () => {
               placeholderTextColor={colors.textTertiary}
               maxLength={50}
               autoCapitalize="words"
+              accessibilityLabel="Display name"
+              accessibilityHint="Enter the name other users will see"
             />
             <Text style={styles.charCount}>{displayName.length}/50</Text>
           </Card>
@@ -174,6 +176,8 @@ const EditProfileScreen = () => {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
+              accessibilityLabel="Bio"
+              accessibilityHint="A short description of yourself shown on your public profile"
             />
             <Text style={styles.charCount}>{bio.length}/200</Text>
           </Card>
@@ -186,6 +190,10 @@ const EditProfileScreen = () => {
                 key={option.key}
                 style={[styles.privacyOption, privacyLevel === option.key && styles.privacyOptionActive]}
                 onPress={() => setPrivacyLevel(option.key)}
+                accessibilityRole="radio"
+                accessibilityLabel={option.label}
+                accessibilityHint={option.description}
+                accessibilityState={{ checked: privacyLevel === option.key }}
               >
                 <View style={styles.radioOuter}>
                   {privacyLevel === option.key && <View style={styles.radioInner} />}

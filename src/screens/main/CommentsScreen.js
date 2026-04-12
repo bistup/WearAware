@@ -110,7 +110,11 @@ const CommentsScreen = () => {
           </View>
           <Text style={styles.commentText}>{item.content}</Text>
           {!isReply && (
-            <TouchableOpacity onPress={() => handleReply(item)}>
+            <TouchableOpacity
+              onPress={() => handleReply(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Reply to ${authorName}`}
+            >
               <Text style={styles.replyButton}>Reply</Text>
             </TouchableOpacity>
           )}
@@ -164,6 +168,7 @@ const CommentsScreen = () => {
             renderItem={({ item }) => renderComment({ item })}
             contentContainerStyle={styles.listContent}
             keyboardShouldPersistTaps="handled"
+            accessibilityLabel="Comments list"
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No comments yet. Be the first!</Text>

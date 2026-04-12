@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import FeedPostCard from '../../components/FeedPostCard';
 import Card from '../../components/Card';
 import { colors, typography, spacing, borderRadius } from '../../theme/theme';
-import { fetchFeed, fetchDiscoverFeed, fetchMyPosts, toggleLike, searchUsers } from '../../services/api';
+import { fetchFeed, fetchDiscoverFeed, fetchMyPosts, toggleLike, searchUsers, deletePost } from '../../services/api';
 
 const FeedScreen = () => {
   const navigation = useNavigation();
@@ -85,6 +85,13 @@ const FeedScreen = () => {
 
   const handleComment = (postId) => {
     navigation.navigate('Comments', { postId });
+  };
+
+  const handleDeletePost = async (postId) => {
+    const result = await deletePost(postId);
+    if (result.success) {
+      setPosts(prev => prev.filter(p => p.id !== postId));
+    }
   };
 
   const handleProfilePress = (firebaseUid) => {
@@ -268,6 +275,7 @@ const FeedScreen = () => {
             renderItem={renderSearchResult}
             contentContainerStyle={styles.searchResults}
             showsVerticalScrollIndicator={false}
+            accessibilityLabel="User search results"
           />
         )
       ) : null}
@@ -281,12 +289,14 @@ const FeedScreen = () => {
         <FlatList
           data={posts}
           keyExtractor={(item) => String(item.id)}
+          accessibilityLabel="Community feed posts"
           renderItem={({ item }) => (
             <FeedPostCard
               post={item}
               onLike={handleLike}
               onComment={handleComment}
               onProfilePress={handleProfilePress}
+              onDelete={activeTab === 'mine' ? handleDeletePost : undefined}
               currentUserUid={user?.uid}
             />
           )}

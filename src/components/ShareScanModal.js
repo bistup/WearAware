@@ -90,6 +90,8 @@ const ShareScanModal = ({ visible, onClose, onShare, scanData }) => {
             multiline
             maxLength={280}
             numberOfLines={3}
+            accessibilityLabel="Caption"
+            accessibilityHint="Optional caption for your shared scan, up to 280 characters"
           />
 
           {/* Public/Private Toggle */}
@@ -109,6 +111,9 @@ const ShareScanModal = ({ visible, onClose, onShare, scanData }) => {
               onValueChange={setIsPublic}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={colors.surface}
+              accessibilityRole="switch"
+              accessibilityLabel="Post visibility"
+              accessibilityState={{ checked: isPublic }}
             />
           </View>
 

@@ -22,12 +22,24 @@ const RegisterScreen = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
   // validate and create new account
   const handleRegister = async () => {
     // check all fields filled
     if (!email || !password || !confirmPassword) {
       showAlert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (!ageConfirmed) {
+      showAlert('Age Requirement', 'You must be 16 or older to use WearAware (GDPR requirement).');
+      return;
+    }
+
+    if (!privacyAccepted) {
+      showAlert('Privacy Policy', 'Please accept the Privacy Policy to continue.');
       return;
     }
 
@@ -86,6 +98,51 @@ const RegisterScreen = () => {
             secureTextEntry
           />
 
+          {/* Age confirmation */}
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setAgeConfirmed(!ageConfirmed)}
+            activeOpacity={0.7}
+            accessibilityRole="checkbox"
+            accessibilityLabel="I confirm I am 16 or older"
+            accessibilityState={{ checked: ageConfirmed }}
+          >
+            <View style={[styles.checkbox, ageConfirmed && styles.checkboxChecked]}>
+              {ageConfirmed && <Ionicons name="checkmark" size={14} color="#fff" />}
+            </View>
+            <Text style={styles.checkboxLabel}>I confirm I am 16 or older</Text>
+          </TouchableOpacity>
+
+          {/* Privacy policy acceptance */}
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setPrivacyAccepted(!privacyAccepted)}
+            activeOpacity={0.7}
+            accessibilityRole="checkbox"
+            accessibilityLabel="I agree to the Privacy Policy"
+            accessibilityState={{ checked: privacyAccepted }}
+          >
+            <View style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}>
+              {privacyAccepted && <Ionicons name="checkmark" size={14} color="#fff" />}
+            </View>
+            <Text style={styles.checkboxLabel}>
+              I agree to the{' '}
+              <Text
+                style={styles.checkboxLink}
+                onPress={() => {
+                  // can't navigate to DataPrivacy from auth stack, so open a note
+                  showAlert(
+                    'Privacy Policy',
+                    'WearAware stores your email, scan data, wardrobe items, and messages on a private server in Ireland. Your data is never sold. You can delete your account and all data at any time in Settings → Privacy & Data.'
+                  );
+                }}
+                accessibilityRole="link"
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </TouchableOpacity>
+
           <Button title="Sign Up" onPress={handleRegister} loading={loading} />
         </View>
 
@@ -134,6 +191,37 @@ const styles = StyleSheet.create({
   },
   form: {
     marginBottom: spacing.xl,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    flexShrink: 0,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+  },
+  checkboxLabel: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    flex: 1,
+    lineHeight: 20,
+  },
+  checkboxLink: {
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   footer: {
     flexDirection: 'row',

@@ -117,8 +117,9 @@ router.post('/image', upload.single('image'), async (req, res) => {
       .jpeg({ quality: 70 })
       .toFile(thumbPath);
 
-    // build URLs (use LAN IP since this runs on LXC)
-    const baseUrl = `http://${req.get('host')}`;
+    // Use https when behind Cloudflare (X-Forwarded-Proto header), otherwise http
+    const proto = req.get('x-forwarded-proto') || 'http';
+    const baseUrl = `${proto}://${req.get('host')}`;
     const imageUrl = `${baseUrl}/uploads/scans/${userHash}/${filename}`;
     const thumbnailUrl = `${baseUrl}/uploads/thumbnails/${userHash}/${filename}`;
 
@@ -183,6 +184,8 @@ router.delete('/my-data', async (req, res) => {
     const userHash = crypto.createHash('sha256').update(firebaseUid).digest('hex').slice(0, 16);
     let deletedCount = 0;
 
+    // delete the actual files from disk - count originals only (thumbnails are paired)
+    let originals = 0;
     ['scans', 'thumbnails'].forEach(dir => {
       const userDir = path.join(UPLOADS_DIR, dir, userHash);
       if (fs.existsSync(userDir)) {
@@ -192,11 +195,21 @@ router.delete('/my-data', async (req, res) => {
           deletedCount++;
         });
         fs.rmdirSync(userDir);
+        if (dir === 'scans') originals = deletedCount;
       }
     });
 
+    // clear image URL fields in the database so history no longer shows broken images
+    const userResult = await pool.query('SELECT id FROM users WHERE firebase_uid = $1', [firebaseUid]);
+    if (userResult.rows.length > 0) {
+      const userId = userResult.rows[0].id;
+      await pool.query('UPDATE scans SET image_url = NULL, thumbnail_url = NULL WHERE user_id = $1', [userId]);
+      await pool.query('UPDATE wardrobe_items SET image_url = NULL, thumbnail_url = NULL WHERE user_id = $1', [userId]);
+      await pool.query('UPDATE user_profiles SET avatar_url = NULL WHERE user_id = $1', [userId]);
+    }
+
     console.log(`GDPR delete: removed ${deletedCount} files for user ${userHash}`);
-    res.json({ success: true, deletedFiles: deletedCount });
+    res.json({ success: true, deletedFiles: originals });
   } catch (error) {
     console.error('GDPR delete error:', error);
     res.status(500).json({ error: error.message });

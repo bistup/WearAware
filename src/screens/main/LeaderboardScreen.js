@@ -191,6 +191,7 @@ const LeaderboardScreen = () => {
           ListEmptyComponent={renderEmpty}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          accessibilityLabel="Sustainability leaderboard"
         />
       )}
     </SafeAreaView>

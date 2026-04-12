@@ -254,12 +254,16 @@ const ManualInputScreen = () => {
                 placeholder="%"
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="numeric"
+                accessibilityLabel={`Fiber ${index + 1} percentage`}
+                accessibilityHint="Enter percentage as a number"
               />
-              
+
               {fibers.length > 1 && (
                 <TouchableOpacity
                   onPress={() => handleRemoveFiber(index)}
                   style={styles.removeButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove fiber ${index + 1}`}
                 >
                   <Ionicons name="close-circle-outline" size={24} color={colors.error} />
                 </TouchableOpacity>

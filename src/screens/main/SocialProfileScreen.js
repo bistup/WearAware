@@ -31,6 +31,7 @@ import {
   unfollowUser,
   toggleLike,
   startConversation,
+  deletePost,
 } from '../../services/api';
 
 const SocialProfileScreen = () => {
@@ -94,6 +95,13 @@ const SocialProfileScreen = () => {
 
   const handleComment = (postId) => {
     navigation.navigate('Comments', { postId });
+  };
+
+  const handleDeletePost = async (postId) => {
+    const result = await deletePost(postId);
+    if (result.success) {
+      setPosts(prev => prev.filter(p => p.id !== postId));
+    }
   };
 
   if (loading) {
@@ -299,7 +307,7 @@ const SocialProfileScreen = () => {
             <View style={styles.wardrobeSectionHeader}>
               <View style={styles.outfitsTitleRow}>
                 <Ionicons name="shirt-outline" size={18} color={colors.primary} />
-                <Text style={styles.sectionTitle}>Wardrobe</Text>
+                <Text style={[styles.sectionTitle, styles.sectionTitleInline]}>Wardrobe</Text>
               </View>
               <Text style={styles.outfitsCount}>{wardrobeItems.length} items</Text>
             </View>
@@ -348,7 +356,7 @@ const SocialProfileScreen = () => {
             <View style={styles.outfitsSectionHeader}>
               <View style={styles.outfitsTitleRow}>
                 <Ionicons name="layers-outline" size={18} color={colors.primary} />
-                <Text style={styles.sectionTitle}>Outfits</Text>
+                <Text style={[styles.sectionTitle, styles.sectionTitleInline]}>Outfits</Text>
               </View>
               <Text style={styles.outfitsCount}>{outfits.length}</Text>
             </View>
@@ -388,6 +396,7 @@ const SocialProfileScreen = () => {
               onLike={handleLike}
               onComment={handleComment}
               onProfilePress={() => {}}
+              onDelete={isOwnProfile ? handleDeletePost : undefined}
               currentUserUid={user?.uid}
             />
           ))
@@ -690,6 +699,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  sectionTitleInline: {
+    marginBottom: 0,
   },
   outfitsCount: {
     ...typography.caption,

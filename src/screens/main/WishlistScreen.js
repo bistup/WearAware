@@ -114,6 +114,8 @@ const WishlistScreen = () => {
         <TouchableOpacity
           style={styles.removeButton}
           onPress={() => handleRemove(item.id, item.product_name)}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${item.product_name || 'item'} from wishlist`}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons name="trash-outline" size={14} color={colors.error} />
@@ -127,6 +129,8 @@ const WishlistScreen = () => {
               const { Linking } = require('react-native');
               Linking.openURL(item.external_url);
             }}
+            accessibilityRole="link"
+            accessibilityLabel={`Visit store for ${item.product_name || 'item'}`}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={styles.visitText}>Visit Store</Text>

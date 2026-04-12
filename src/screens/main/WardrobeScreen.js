@@ -329,6 +329,7 @@ const WardrobeScreen = () => {
           numColumns={2}
           contentContainerStyle={styles.gridContent}
           showsVerticalScrollIndicator={false}
+          accessibilityLabel="Wardrobe items"
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyCircle}>

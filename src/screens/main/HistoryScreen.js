@@ -153,7 +153,12 @@ const HistoryScreen = () => {
           <View style={styles.scanRight}>
             {hasImage && <GradeIndicator grade={item.grade || 'C'} size="small" />}
             {comparisonMode ? (
-              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+              <View
+                style={[styles.checkbox, isSelected && styles.checkboxSelected]}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected }}
+                accessibilityLabel={`Select ${item.brand || 'scan'} for comparison`}
+              >
                 {isSelected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
               </View>
             ) : (
@@ -279,6 +284,7 @@ const HistoryScreen = () => {
           keyExtractor={(item, index) => item.id || index.toString()}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={renderEmptyState}
+          accessibilityLabel="Scan history list"
         />
       )}
 
@@ -313,8 +319,8 @@ const getStyles = (colors, typography, spacing) => StyleSheet.create({
     ...typography.h1,
   },
   iconButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surfaceSecondary,
     alignItems: 'center',

@@ -10,7 +10,7 @@ import Card from './Card';
 import GradeIndicator from './GradeIndicator';
 import { colors, typography, spacing, borderRadius } from '../theme/theme';
 
-const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid }) => {
+const FeedPostCard = ({ post, onLike, onComment, onProfilePress, onDelete, currentUserUid }) => {
   const [liked, setLiked] = useState(post.userLiked);
   const [likeCount, setLikeCount] = useState(post.likeCount || 0);
 
@@ -39,6 +39,8 @@ const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid 
       <TouchableOpacity
         style={styles.authorRow}
         onPress={() => onProfilePress?.(post.author?.firebaseUid)}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${authorName}'s profile`}
       >
         <View style={styles.avatar}>
           {authorAvatar ? (
@@ -61,6 +63,7 @@ const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid 
           source={{ uri: post.scan.imageUrl }}
           style={styles.scanImage}
           resizeMode="cover"
+          accessibilityLabel={`Scan image for ${post.scan.brand || 'garment'}`}
         />
       )}
 
@@ -114,6 +117,16 @@ const FeedPostCard = ({ post, onLike, onComment, onProfilePress, currentUserUid 
 
       {/* Actions */}
       <View style={styles.actionsRow}>
+        {onDelete && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => onDelete(post.id)}
+            accessibilityRole="button"
+            accessibilityLabel="Delete post"
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.actionButton} onPress={handleLike}
           accessibilityRole="button"
           accessibilityLabel={liked ? `Unlike, ${likeCount} likes` : `Like, ${likeCount} likes`}
@@ -340,6 +353,14 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     paddingTop: spacing.sm,
     gap: spacing.lg,
+    alignItems: 'center',
+  },
+  deleteButton: {
+    marginLeft: 'auto',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   actionButton: {
     flexDirection: 'row',

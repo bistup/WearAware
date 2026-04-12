@@ -3,7 +3,7 @@
 // charity shops screen - shows nearby charity/thrift shops on a map
 // uses expo-location for user position and react-native-maps for display
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -158,6 +158,8 @@ const CharityShopsScreen = () => {
             style={styles.directionsButton}
             onPress={() => openDirections(item)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Get directions to ${item.name}`}
           >
             <Ionicons name="navigate" size={20} color={colors.primary} />
           </TouchableOpacity>

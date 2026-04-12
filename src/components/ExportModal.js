@@ -186,13 +186,17 @@ const ExportModal = ({ visible, scans, selectedScans: initialSelected = [], onCl
                     </TouchableOpacity>
                   </View>
                 </View>
-                <View style={styles.scanList}>
+                <ScrollView
+                  style={styles.scanList}
+                  nestedScrollEnabled={true}
+                  showsVerticalScrollIndicator={true}
+                >
                   {scans.map((item) => (
                     <View key={item.id}>
                       {renderScanItem({ item })}
                     </View>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             )}
 

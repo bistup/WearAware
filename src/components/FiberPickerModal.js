@@ -17,6 +17,7 @@ const FiberPickerModal = ({ visible, onClose, onSelect }) => {
       transparent={true}
       animationType="fade"
       onRequestClose={onClose}
+      accessibilityViewIsModal={true}
     >
       {/* overlay that dismisses modal when tapped */}
       <TouchableOpacity
@@ -34,6 +35,8 @@ const FiberPickerModal = ({ visible, onClose, onSelect }) => {
                   key={fiber}
                   style={styles.option}
                   onPress={() => onSelect(fiber)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${fiber}`}
                 >
                   <Text style={styles.optionText}>{fiber}</Text>
                 </TouchableOpacity>

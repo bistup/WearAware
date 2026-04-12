@@ -3,7 +3,7 @@
 // outfits screen - create outfits from wardrobe items and plan weekly looks
 // swipe through days of the week, add/remove items to build outfits
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -154,6 +154,8 @@ const OutfitsScreen = () => {
           <TouchableOpacity
             onPress={() => handleDelete(outfit)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete outfit ${outfit.name}`}
           >
             <Ionicons name="trash-outline" size={18} color={colors.textTertiary} />
           </TouchableOpacity>

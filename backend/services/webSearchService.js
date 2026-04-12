@@ -60,14 +60,23 @@ async function searchAlternatives(itemType, primaryFiber, options = {}) {
 
     console.log('Web search query:', query);
 
-    // use vertex ai grounded search
-    const searchResult = await vertexAi.groundedSearch(query, limit);
+    // fetch more results than needed so we can filter out poor ones
+    const searchResult = await vertexAi.groundedSearch(query, limit * 2);
+
+    // filter: keep results that have an image and look like product pages
+    const filtered = (searchResult.results || []).filter(r => {
+      if (!r.imageUrl) return false;
+      // skip obvious non-product pages (about, blog, homepage)
+      const url = (r.link || '').toLowerCase();
+      if (url.match(/\/(about|blog|journal|story|sustainability|careers|press|contact|faq)\/?$/)) return false;
+      return true;
+    }).slice(0, limit);
 
     return {
       success: searchResult.success,
-      results: searchResult.results,
+      results: filtered,
       query,
-      totalResults: searchResult.totalResults || searchResult.results.length,
+      totalResults: filtered.length,
       error: searchResult.error,
     };
   } catch (error) {
@@ -151,7 +160,9 @@ function buildSearchQuery(itemType, fiberTerm, sustainableOnly, imageDescription
     parts.push(fiberTerm);
   }
 
-  return parts.join(' ') || 'clothing';
+  const base = parts.join(' ') || 'clothing';
+  // append 'shop' to bias discovery engine toward product/shop pages
+  return `${base} shop`;
 }
 
 /**
