@@ -1,6 +1,32 @@
 // author: caitriona mccann
 // date: 18/03/2026
-// chat screen - individual conversation with messages and trade request buttons
+// last updated: 14/04/2026
+// chat screen - real-time(ish) messaging between two users
+//
+// how it works:
+//   messages are loaded via polling (every 5 seconds via setInterval).
+//   there is no websocket/SSE - the interval is started on screen focus and
+//   cleared on blur via useFocusEffect cleanup.
+//
+// message types (stored in messages.message_type):
+//   'text'         - plain text bubble
+//   'trade_request'- a trade offer card (links to TradeScreen via handleTradePress)
+//   'trade_update' - auto-generated status update (accepted / declined / completed)
+//
+// trade button (top-right swap icon):
+//   opens TradeScreen in "create" mode, pre-filling otherFirebaseUid and conversationId.
+//   once a trade is created, a 'trade_request' message appears in the chat.
+//
+// layout:
+//   header with back arrow, avatar, and other user's name + trade button
+//   FlatList of message bubbles (own messages right-aligned, other user left-aligned)
+//   text input + send button at the bottom (KeyboardAvoidingView handles keyboard overlap)
+//
+// navigation params required:
+//   conversationId    - DB id of the conversation
+//   otherUserName     - display name shown in header
+//   otherFirebaseUid  - uid of the other participant (for creating trades)
+//   otherAvatarUrl    - avatar shown in header (can be null)
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {

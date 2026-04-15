@@ -123,6 +123,8 @@ const CharityShopsScreen = () => {
         style={[styles.shopCard, isSelected && styles.shopCardSelected]}
         onPress={() => handleShopPress(item)}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.name}, ${item.address}${item.openNow != null ? `, ${item.openNow ? 'Open' : 'Closed'}` : ''}`}
       >
         <View style={styles.shopRow}>
           <View style={styles.shopIconContainer}>
@@ -241,6 +243,9 @@ const CharityShopsScreen = () => {
                 key={opt.value}
                 style={[styles.radiusChip, radius === opt.value && styles.radiusChipActive]}
                 onPress={() => handleRadiusChange(opt.value)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: radius === opt.value }}
+                accessibilityLabel={`${opt.label} radius`}
               >
                 <Text style={[styles.radiusChipText, radius === opt.value && styles.radiusChipTextActive]}>
                   {opt.label}

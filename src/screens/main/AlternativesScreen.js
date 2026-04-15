@@ -3,7 +3,7 @@
 // alternatives screen - shows sustainable product recommendations after a scan
 // users can compare, save to wishlist, and visit external shops
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -15,13 +15,13 @@ import { searchWebAlternatives, searchSecondHand } from '../../services/api';
 const AlternativesScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { scanData, scanId } = route.params || {};
+  const { scanData } = route.params || {};
 
   const [webResults, setWebResults] = useState([]);
   const [secondHandResults, setSecondHandResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('web'); // 'web' or 'secondhand'
-  const [selectedGender, setSelectedGender] = useState(scanData?.gender || null);
+  const [selectedGender] = useState(scanData?.gender || null);
 
   const scannedItem = scanData ? {
     waterUsage: scanData.water_usage_liters || scanData.waterUsage || 0,
@@ -87,7 +87,7 @@ const AlternativesScreen = () => {
           </View>
         </TouchableOpacity>
 
-        <Text style={styles.title}>Better Alternatives</Text>
+        <Text style={styles.title}>Sustainable Alternatives</Text>
         <Text style={styles.subtitle}>
           {`Sustainable options for your ${scanData?.item_type || scanData?.itemType || 'item'}`}
         </Text>
@@ -112,24 +112,6 @@ const AlternativesScreen = () => {
           </Card>
         )}
 
-        {/* Gender Filter */}
-        <View style={styles.genderFilter}>
-          {[
-            { key: null, label: 'All' },
-            { key: "men's", label: "Men's" },
-            { key: "women's", label: "Women's" },
-          ].map(g => (
-            <TouchableOpacity
-              key={g.key || 'all'}
-              style={[styles.genderBtn, selectedGender === g.key && styles.genderBtnActive]}
-              onPress={() => setSelectedGender(g.key)}
-            >
-              <Text style={[styles.genderBtnText, selectedGender === g.key && styles.genderBtnTextActive]}>
-                {g.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
 
         {/* Section Toggle Tabs */}
         {hasWeb && hasSecondHand && (
@@ -137,6 +119,9 @@ const AlternativesScreen = () => {
             <TouchableOpacity
               style={[styles.sectionTab, activeSection === 'web' && styles.sectionTabActive]}
               onPress={() => setActiveSection('web')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeSection === 'web' }}
+              accessibilityLabel="Web results"
             >
               <Text style={[styles.sectionTabText, activeSection === 'web' && styles.sectionTabTextActive]}>
                 Web Results
@@ -145,6 +130,9 @@ const AlternativesScreen = () => {
             <TouchableOpacity
               style={[styles.sectionTab, activeSection === 'secondhand' && styles.sectionTabActive]}
               onPress={() => setActiveSection('secondhand')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeSection === 'secondhand' }}
+              accessibilityLabel="Second-hand results"
             >
               <Text style={[styles.sectionTabText, activeSection === 'secondhand' && styles.sectionTabTextActive]}>
                 Second Hand
@@ -410,32 +398,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.background,
     fontWeight: '600',
-  },
-  genderFilter: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  genderBtn: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  genderBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  genderBtnText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  genderBtnTextActive: {
-    color: colors.background,
-    fontWeight: '700',
   },
   sectionToggle: {
     flexDirection: 'row',

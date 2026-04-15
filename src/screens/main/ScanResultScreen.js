@@ -1,10 +1,33 @@
 // author: caitriona mccann
 // date: 27/11/2025
-// last updated: 19/02/2026
-// scan results - modernised layout with hero grade, quick stats, fiber bars
-// always shows alternatives, AI summary via Ollama, care instructions tab
+// last updated: 14/04/2026
+// scan result screen - displays the full sustainability analysis for a scanned garment
+//
+// navigation entry points:
+//   CameraScreen   → after successful OCR scan (scanData populated from vision api parse)
+//   HistoryScreen  → tapping a past scan (scanData from backend DB row)
+//   ManualInputScreen → after manually entering fiber composition
+//
+// layout has two tabs:
+//   'sustainability' - grade badge, score, water/carbon metrics, fiber breakdown bars, ai summary
+//   'care'           - list of care instructions extracted from the label (wash, dry, iron, etc.)
+//
+// on mount (first render with a new scan):
+//   1. fetchSummaryFromData() → calls /api/summaries/generate to get an ollama ai summary
+//      (falls back to template text if ollama is unavailable)
+//   2. triggerGamification() → checks achievement progress and updates joined challenge progress
+//
+// key state:
+//   updatedScanData - the scan object (may be updated if user changes item type)
+//   aiSummary       - the ollama-generated text paragraph shown in the sustainability tab
+//   newlyUnlocked   - array of newly unlocked achievements (shown as toast/alert after scan)
+//   showShareModal  - controls the share-to-feed bottom sheet
+//
+// the screen is read-only for historical scans (from HistoryScreen).
+// isVisualScan flag was used when visual similarity search existed; kept as a guard
+// to skip gamification on non-label scans but is now always false.
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -15,7 +38,7 @@ import CareIcon from '../../components/CareIcon';
 import ShareScanModal from '../../components/ShareScanModal';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, getGradeColor } from '../../theme/theme';
-import { deleteScan, saveScanToBackend, generateAiSummary, generateAiSummaryFromData, fetchVisualRecommendations, addToWardrobe, listWardrobeItem } from '../../services/api';
+import { deleteScan, saveScanToBackend, generateAiSummary, generateAiSummaryFromData, addToWardrobe, listWardrobeItem } from '../../services/api';
 import { createPost, checkAchievements, updateChallengeProgress } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
@@ -23,7 +46,7 @@ import { useAlert } from '../../context/AlertContext';
 const ScanResultScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { user, isGuest } = useAuth();
+  const { isGuest } = useAuth();
   const { showAlert } = useAlert();
   const { scanData, scanId } = route.params || {};
 
@@ -32,15 +55,12 @@ const ScanResultScreen = () => {
   const [selectedItemType, setSelectedItemType] = useState(scanData?.itemType || scanData?.item_type || 'Garment');
   const [showItemTypeModal, setShowItemTypeModal] = useState(false);
   const [updatedScanData, setUpdatedScanData] = useState(scanData);
-  const [brandName, setBrandName] = useState(scanData?.brand || '');
+  const [brandName] = useState(scanData?.brand || '');
   const [aiSummary, setAiSummary] = useState('');
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [activeTab, setActiveTab] = useState('sustainability');
   const [showShareModal, setShowShareModal] = useState(false);
   const [newlyUnlocked, setNewlyUnlocked] = useState([]);
-  const [visualRecs, setVisualRecs] = useState([]);
-  const [loadingVisualRecs, setLoadingVisualRecs] = useState(false);
-
   useEffect(() => {
     if (scanData) {
       console.log('ScanResultScreen received scanData:', JSON.stringify(scanData, null, 2));
@@ -50,31 +70,6 @@ const ScanResultScreen = () => {
       }
     }
   }, [scanData]);
-
-  // fetch visual recommendations for any scan with an image (CLIP embedding)
-  useEffect(() => {
-    if (scanId) {
-      // for visual scans, load immediately
-      // for normal scans with images, delay slightly to let backend extract CLIP embedding
-      const hasImage = !!(scanData?.imageUrl || scanData?.image_url);
-      if (isVisualScan) {
-        loadVisualRecommendations();
-      } else if (hasImage) {
-        // give backend 3 seconds to extract CLIP embedding, then try
-        const timer = setTimeout(() => loadVisualRecommendations(), 3000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [scanId]);
-
-  const loadVisualRecommendations = async () => {
-    setLoadingVisualRecs(true);
-    const result = await fetchVisualRecommendations(scanId);
-    if (result.success) {
-      setVisualRecs(result.recommendations || []);
-    }
-    setLoadingVisualRecs(false);
-  };
 
   useEffect(() => {
     if (scanData && !isGuest && !isVisualScan) {
@@ -158,6 +153,7 @@ const ScanResultScreen = () => {
       if (result.success) {
         setShowShareModal(false);
         await checkAchievements('share', {});
+        await updateChallengeProgress('share', 1);
         showAlert('Shared!', 'Your scan has been posted to the community feed.');
       } else {
         showAlert('Error', result.error || 'Failed to share scan.');
@@ -333,6 +329,9 @@ const ScanResultScreen = () => {
             <TouchableOpacity
               style={[styles.tab, activeTab === 'sustainability' && styles.tabActive]}
               onPress={() => setActiveTab('sustainability')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'sustainability' }}
+              accessibilityLabel="Sustainability information"
             >
               <Text style={[styles.tabText, activeTab === 'sustainability' && styles.tabTextActive]}>
                 Sustainability
@@ -341,6 +340,9 @@ const ScanResultScreen = () => {
             <TouchableOpacity
               style={[styles.tab, activeTab === 'care' && styles.tabActive]}
               onPress={() => setActiveTab('care')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === 'care' }}
+              accessibilityLabel="Care instructions"
             >
               <Text style={[styles.tabText, activeTab === 'care' && styles.tabTextActive]}>
                 Care Instructions
@@ -378,7 +380,12 @@ const ScanResultScreen = () => {
               <View style={styles.summaryHeader}>
                 <Text style={styles.sectionTitle}>AI Analysis</Text>
                 {loadingSummary && (
-                  <ActivityIndicator size="small" color={colors.primary} />
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.primary}
+                    accessibilityLiveRegion="polite"
+                    accessibilityLabel="Generating AI analysis"
+                  />
                 )}
               </View>
               {loadingSummary ? (
@@ -451,56 +458,16 @@ const ScanResultScreen = () => {
                     {a.name}
                   </Text>
                 ))}
-                <TouchableOpacity onPress={() => navigation.navigate('Challenges')}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Challenges')}
+                  accessibilityRole="link"
+                  accessibilityLabel="View all achievements"
+                >
                   <Text style={styles.achievementLink}>View All Achievements →</Text>
                 </TouchableOpacity>
               </Card>
             )}
 
-            {/* Visually Similar Alternatives (shown when CLIP embedding available) */}
-            {(visualRecs.length > 0 || loadingVisualRecs) && (
-              <Card style={styles.visualRecsCard}>
-                <Text style={styles.sectionTitle}>Visually Similar Alternatives</Text>
-                {loadingVisualRecs ? (
-                  <View style={styles.visualRecsLoading}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.summaryText}>Finding similar items...</Text>
-                  </View>
-                ) : visualRecs.length > 0 ? (
-                  <>
-                    {visualRecs.slice(0, 3).map((rec, i) => (
-                      <TouchableOpacity
-                        key={rec.id || i}
-                        style={styles.visualRecItem}
-                        onPress={() => navigation.navigate('Alternatives', { scanData: updatedScanData, scanId })}
-                      >
-                        <View style={styles.visualRecLeft}>
-                          <Text style={styles.visualRecBrand}>{rec.brand}</Text>
-                          <Text style={styles.visualRecName}>{rec.productName}</Text>
-                        </View>
-                        <View style={styles.visualRecRight}>
-                          <Text style={styles.visualRecMatchPct}>{rec.matchPercentage}%</Text>
-                          <Text style={styles.visualRecMatchLabel}>match</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                    {visualRecs.length > 3 && (
-                      <TouchableOpacity
-                        onPress={() => navigation.navigate('Alternatives', { scanData: updatedScanData, scanId })}
-                      >
-                        <Text style={styles.visualRecsSeeAll}>
-                          See all {visualRecs.length} matches →
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </>
-                ) : (
-                  <Text style={styles.summaryTextMuted}>
-                    No visually similar alternatives found yet
-                  </Text>
-                )}
-              </Card>
-            )}
 
             {/* Action Buttons - icon + label stacked, equal-width columns */}
             <View style={styles.actionsRow}>
@@ -508,6 +475,8 @@ const ScanResultScreen = () => {
                 <TouchableOpacity
                   style={styles.actionBtn}
                   onPress={() => setShowShareModal(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Share scan"
                 >
                   <Ionicons name="share-outline" size={22} color={colors.textPrimary} />
                   <Text style={styles.actionBtnText}>Share</Text>
@@ -534,6 +503,8 @@ const ScanResultScreen = () => {
                       showAlert('Note', result.error || 'Could not add to wardrobe');
                     }
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add to wardrobe"
                 >
                   <Ionicons name="shirt-outline" size={22} color={colors.textPrimary} />
                   <Text style={styles.actionBtnText}>Wardrobe</Text>
@@ -597,6 +568,8 @@ const ScanResultScreen = () => {
                       ]
                     );
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel="List on marketplace"
                 >
                   <Ionicons name="storefront-outline" size={22} color={colors.textPrimary} />
                   <Text style={styles.actionBtnText}>Market</Text>
@@ -605,6 +578,8 @@ const ScanResultScreen = () => {
               <TouchableOpacity
                 style={styles.actionBtn}
                 onPress={() => navigation.navigate('EditScan', { scanData: updatedScanData, scanId })}
+                accessibilityRole="button"
+                accessibilityLabel="Edit scan"
               >
                 <Ionicons name="create-outline" size={22} color={colors.textPrimary} />
                 <Text style={styles.actionBtnText}>Edit</Text>
@@ -612,6 +587,8 @@ const ScanResultScreen = () => {
               <TouchableOpacity
                 style={styles.actionBtn}
                 onPress={() => navigation.navigate('Breakdown', { scanData: updatedScanData, scanId })}
+                accessibilityRole="button"
+                accessibilityLabel="View details"
               >
                 <Ionicons name="analytics-outline" size={22} color={colors.textPrimary} />
                 <Text style={styles.actionBtnText}>Details</Text>
@@ -620,6 +597,8 @@ const ScanResultScreen = () => {
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.actionBtnDanger]}
                   onPress={handleDelete}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete scan"
                 >
                   <Ionicons name="trash-outline" size={22} color={colors.error} />
                   <Text style={[styles.actionBtnText, styles.actionBtnDangerText]}>Delete</Text>
@@ -1121,55 +1100,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Visual recommendations
-  visualRecsCard: {
-    marginBottom: spacing.md,
-  },
-  visualRecsLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  visualRecItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  visualRecLeft: {
-    flex: 1,
-  },
-  visualRecBrand: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  visualRecName: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  visualRecRight: {
-    alignItems: 'center',
-    marginLeft: spacing.md,
-  },
-  visualRecMatchPct: {
-    ...typography.h3,
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  visualRecMatchLabel: {
-    ...typography.caption,
-    color: colors.textTertiary,
-  },
-  visualRecsSeeAll: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '600',
-    marginTop: spacing.md,
-    textAlign: 'center',
-  },
 });
 
 export default ScanResultScreen;

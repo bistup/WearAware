@@ -2,6 +2,51 @@
 // date: 09/02/2026
 // gamification routes - achievements, challenges, leaderboards
 // incentivizes sustainable clothing choices through game mechanics
+//
+// --- POINTS SYSTEM OVERVIEW ---
+//
+// A user's total leaderboard score has two components:
+//
+//   1. SCAN POINTS
+//      Earned each time a user scans a garment. The amount depends on
+//      the environmental grade of the scanned item:
+//        Grade A = 10 pts   (score 80+)
+//        Grade B =  8 pts   (score 65-79)
+//        Grade C =  6 pts   (score 50-64)
+//        Grade D =  4 pts   (score 35-49)
+//        Grade F =  2 pts   (score 0-34)
+//      Scanning higher-grade (more sustainable) garments earns more points,
+//      rewarding users who choose eco-friendly materials.
+//
+//   2. ACHIEVEMENT POINTS
+//      One-time bonuses awarded when a user unlocks an achievement milestone
+//      (e.g. "First Scan", "10 Grade-A Scans"). Each achievement has a fixed
+//      points value stored in the achievements table.
+//
+//   TOTAL SCORE = scan_points + achievement_points
+//   Leaderboard ranks by total score DESC, then scan count DESC.
+//
+// --- ACHIEVEMENTS ---
+//   Progress is tracked per user via the user_achievements table.
+//   Events that trigger progress checks (called from ScanResultScreen / FeedScreen):
+//     'scan'           - any garment scan
+//     'grade_a'        - scan with grade A
+//     'share'          - post shared to feed
+//     'follow'         - user followed someone
+//     'gained_follower'- user gained a follower
+//     'wishlist_add'   - item added to wishlist
+//
+// --- CHALLENGES ---
+//   Active challenges are rows in the challenges table where ends_at > NOW().
+//   Users join a challenge, then progress is updated automatically via
+//   updateChallengeProgress (called from ScanResultScreen / FeedScreen).
+//   Supported goal types and the events that increment them:
+//     'scan_count'  <- eventType 'scan'  (value 1 per scan)
+//     'share_count' <- eventType 'share' (value 1 per share)
+//     'water_saved' <- eventType 'water_saved' (value = litres saved)
+//     'carbon_saved'<- eventType 'carbon_saved' (value = kg saved)
+//   When a joined challenge reaches goal_value, it is marked completed
+//   and the user is notified.
 
 const express = require('express');
 const router = express.Router();
@@ -442,8 +487,13 @@ router.get('/leaderboard', async (req, res) => {
         achievementDateFilter = '';
     }
 
+    // leaderboard query:
+    // scan_points  - sum of per-scan points based on grade (A=10, B=8, C=6, D=4, F=2)
+    // achievement_points - sum of points from all unlocked achievements in the period
+    // total_score  - scan_points + achievement_points (used for ranking)
+    // ROW_NUMBER() assigns a stable rank even when total_score is tied
     const result = await pool.query(
-      `SELECT 
+      `SELECT
         u.firebase_uid,
         u.email,
         up.display_name,

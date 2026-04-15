@@ -1,15 +1,15 @@
 Author: Caitriona McCann
-Last Updated: 26/03/2026
+Last Updated: 14/04/2026
 WearAware — Sustainable Fashion Scanner
 
 WearAware is a React Native mobile application that scans clothing care
 labels to evaluate environmental impact. Users photograph a care label,
 the app extracts fibre composition using OCR, calculates a sustainability
-score and letter grade (A-F) based on water usage, CO2 emissions,
-microplastic shedding and chemical intensity, and generates an AI-powered
-sustainability summary. Registered users and guests can use the app,
-however guest users do not have access to scan history, social features,
-gamification, wardrobe management or the marketplace.
+score and letter grade (A-F) based on water usage and CO2 emissions,
+and generates an AI-powered sustainability summary. Registered users and
+guests can use the app, however guest users do not have access to scan
+history, social features, gamification, wardrobe management or the
+marketplace.
 
 TECHNOLOGIES REQUIRED:
 - Node.js 18+
@@ -30,9 +30,8 @@ HOW IT WORKS:
 4. Google Cloud Vision API extracts text from the label image
 5. Fibre composition is parsed from the extracted text
 6. User optionally photographs the garment itself
-7. App calculates sustainability score and grade (A-F) based on four
-   environmental metrics: water usage, CO2 emissions, microplastic
-   shedding and chemical intensity
+7. App calculates sustainability score and grade (A-F) based on
+   water usage and CO2 emissions per fibre type and garment weight
 8. Backend saves scan to PostgreSQL and generates an AI summary via Ollama
 9. If a garment photo was taken, the CLIP ML service classifies its visual
    attributes (colour, pattern, garment type) for use in alternative search
@@ -42,23 +41,24 @@ HOW IT WORKS:
 
 KEY FEATURES:
 - Care label scanning with OCR (Google Cloud Vision API)
-- Manual fibre input as fallback
-- Sustainability scoring across 30+ fibre types
-- AI-generated sustainability summaries (Ollama / Llama 3.2)
+- Manual fibre input as fallback (30+ fibre types supported)
+- Sustainability scoring: water usage + CO2 per fibre type and garment weight
+- Letter grade A-F with colour-coded indicator
+- AI-generated sustainability summaries (Ollama / Llama 3.2 1B)
 - CLIP machine learning microservice for garment image classification
 - Sustainable product alternatives via Google Vertex AI Discovery Engine
 - Second-hand alternatives via eBay Browse API
-- Scan history with search, filter, comparison and export (CSV/PDF/text)
+- Scan history with export (CSV/PDF/text)
 - Care instructions display with visual symbols
 - Community social feed with follows, likes and comments
-- Gamification: 15 achievements, weekly/monthly challenges, leaderboard
+- Gamification: achievements, weekly challenges, leaderboard with points system
 - Wardrobe management with category organisation and wear logging
 - Weekly outfit planning
 - Community marketplace for free and trade listings
 - Direct messaging between users
 - Clothing trade system with charity shop dropbox allocation and PIN codes
 - Nearby charity shops map using device location
-- Redis caching throughout for performance
+- Redis caching throughout (graceful fallback when unavailable)
 - WCAG 2.1 AA and EU Accessibility Act compliant across all screens
 
 COMPONENT INTERACTION:
@@ -122,10 +122,11 @@ SETUP STEPS:
 6. Frontend Setup:
    - Return to root: cd ..
    - Install dependencies: npm install
-   - Create a .env file in the root using .env.example as a template:
-     * Add your Google Cloud Vision API key
-     * Add your Firebase project credentials
-     * Update the backend IP to your computer's local IP
+   - Create a .env file in the root with:
+     * GOOGLE_VISION_API_KEY=your_google_vision_api_key
+     * GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+     * BACKEND_API_URL=http://YOUR_SERVER_IP:3000/api
+     * Firebase project credentials (FIREBASE_API_KEY, etc.)
 
 7. Run the App:
    - Start Expo: npx expo start

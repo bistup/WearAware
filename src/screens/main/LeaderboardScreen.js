@@ -73,6 +73,8 @@ const LeaderboardScreen = () => {
       <TouchableOpacity
         onPress={() => navigation.navigate('SocialProfile', { firebaseUid: item.firebase_uid })}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.display_name || item.email?.split('@')[0] || 'User'}, rank ${rank}, ${Number(item.total_score || 0).toFixed(0)} points`}
       >
         <Card style={[styles.entryCard, isCurrentUser && styles.currentUserCard]}>
           <View style={styles.rankContainer}>
@@ -140,6 +142,9 @@ const LeaderboardScreen = () => {
             key={p.key}
             style={[styles.periodButton, period === p.key && styles.periodButtonActive]}
             onPress={() => setPeriod(p.key)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: period === p.key }}
+            accessibilityLabel={p.label}
           >
             <Text style={[styles.periodText, period === p.key && styles.periodTextActive]}>
               {p.label}

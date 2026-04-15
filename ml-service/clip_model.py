@@ -1,6 +1,25 @@
 """
-CLIP Model Wrapper for Clothing Image Embeddings
-Uses OpenAI CLIP models for fashion similarity
+CLIP Model Wrapper for Garment Image Understanding
+Uses OpenAI CLIP (clip-vit-base-patch16) via HuggingFace Transformers.
+
+Two main capabilities:
+  1. extract_embedding(image_url)
+     Runs the image through CLIP's vision encoder and returns a 512-dimensional
+     unit-norm vector. Vectors from similar garments cluster together in this
+     embedding space, enabling cosine similarity comparisons.
+     (Currently unused by the backend - visual similarity search was removed)
+
+  2. describe_image(image_url)
+     Uses CLIP zero-shot classification with prompt ensembling to classify a
+     garment across four categories: color, pattern, style, garment_type.
+     For each category, multiple prompt templates are averaged to improve
+     robustness (e.g. "a photo of {label} colored clothing" + 2 variants).
+     Only high-confidence attributes (>= 0.15) are included in the description
+     string passed to webSearchService for query building.
+
+Image preprocessing:
+  Images are center-cropped to a square before being passed to CLIP.
+  This removes background noise and focuses the model on the garment.
 """
 
 from transformers import CLIPProcessor, CLIPModel
@@ -12,7 +31,8 @@ import numpy as np
 
 class CLIPEmbeddingExtractor:
     """
-    Extracts 512-dimensional embeddings from clothing images using CLIP
+    Wrapper around CLIP for clothing image understanding.
+    Model is loaded once and reused across all requests via the Flask app singleton.
     """
 
     def __init__(self, model_name="openai/clip-vit-base-patch16"):

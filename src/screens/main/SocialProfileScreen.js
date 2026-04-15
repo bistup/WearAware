@@ -171,6 +171,8 @@ const SocialProfileScreen = () => {
               onPress={() => navigation.navigate('FollowerList', {
                 firebaseUid: targetUid, type: 'followers'
               })}
+              accessibilityRole="button"
+              accessibilityLabel={`${profile.follower_count || 0} followers`}
             >
               <Text style={styles.statValue}>{profile.follower_count || 0}</Text>
               <Text style={styles.statLabel}>Followers</Text>
@@ -180,6 +182,8 @@ const SocialProfileScreen = () => {
               onPress={() => navigation.navigate('FollowerList', {
                 firebaseUid: targetUid, type: 'following'
               })}
+              accessibilityRole="button"
+              accessibilityLabel={`${profile.following_count || 0} following`}
             >
               <Text style={styles.statValue}>{profile.following_count || 0}</Text>
               <Text style={styles.statLabel}>Following</Text>
@@ -203,6 +207,8 @@ const SocialProfileScreen = () => {
               <TouchableOpacity
                 style={[styles.messageBtn, messagingLoading && styles.messageBtnLoading]}
                 disabled={messagingLoading}
+                accessibilityRole="button"
+                accessibilityLabel={`Message ${displayName}`}
                 onPress={async () => {
                   setMessagingLoading(true);
                   const result = await startConversation(targetUid);
@@ -323,6 +329,8 @@ const SocialProfileScreen = () => {
                       otherUserName: displayName,
                     })}
                     activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.name}${item.environmentalGrade ? `, grade ${item.environmentalGrade}` : ''} — tap to trade`}
                   >
                     {imageUri ? (
                       <Image source={{ uri: imageUri }} style={styles.wardrobeThumbImage} resizeMode="cover" />

@@ -113,6 +113,7 @@ const LoginScreen = () => {
           <TouchableOpacity
             onPress={() => navigation.navigate('Register')}
             accessibilityRole="link"
+            accessibilityLabel="Sign up for an account"
           >
             <Text style={styles.linkText}>Sign Up</Text>
           </TouchableOpacity>

@@ -137,7 +137,13 @@ const EditProfileScreen = () => {
                 </Text>
               )}
             </View>
-            <TouchableOpacity style={styles.avatarButton} onPress={handlePickAvatar} disabled={uploadingAvatar}>
+            <TouchableOpacity
+              style={styles.avatarButton}
+              onPress={handlePickAvatar}
+              disabled={uploadingAvatar}
+              accessibilityRole="button"
+              accessibilityLabel="Upload profile picture"
+            >
               {uploadingAvatar ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
@@ -218,6 +224,8 @@ const EditProfileScreen = () => {
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
           >
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>

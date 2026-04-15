@@ -1,7 +1,30 @@
 // author: caitriona mccann
 // date: 12/03/2026
+// last updated: 14/04/2026
 // wardrobe screen - view and manage clothing items in your wardrobe
 // 2-column grid layout, filter by category, log wears, favorite items
+//
+// wardrobe items can come from two sources:
+//   1. imported from scan history via importScansToWardrobe() (the + button)
+//      → copies scan records into wardrobe_items table on the backend
+//   2. added directly from ScanResultScreen ("Add to Wardrobe" button)
+//      → single item added via addToWardrobe()
+//
+// key interactions:
+//   - category filter chips: All / Tops / Bottoms / Dresses / Outerwear / Activewear / Accessories / General
+//     each filter triggers a fresh fetch from the backend (category stored in DB)
+//   - favorite toggle: heart icon on each card; calls updateWardrobeItem({ isFavorite })
+//   - log wear: shoe icon on each card; calls logWear() incrementing wearCount
+//   - remove item: trash icon in the expanded view; calls removeFromWardrobe()
+//   - list on marketplace: dollar sign icon; calls listWardrobeItem() to mark item as listed
+//
+// layout:
+//   header with stats (total wears, favourites count) + import button
+//   category scroll chips → 2-column FlatList of item cards
+//   each card shows: thumbnail or grade badge, brand, item type, wear count, grade indicator
+//
+// useFocusEffect re-fetches on tab focus so wardrobe reflects newly added items
+// from ScanResultScreen without requiring a manual refresh.
 
 import React, { useState, useCallback, useMemo } from 'react';
 import {
@@ -130,6 +153,9 @@ const WardrobeScreen = () => {
       <TouchableOpacity
         style={[styles.gridCard, index % 2 === 0 ? { marginRight: CARD_GAP / 2 } : { marginLeft: CARD_GAP / 2 }]}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={[item.name, item.brand, item.environmentalGrade ? `Grade ${item.environmentalGrade}` : null].filter(Boolean).join(', ')}
+        accessibilityHint="Tap to view. Long press for more options"
         onPress={() => {
           if (item.scanId) {
             navigation.navigate('ScanResult', { scanId: item.scanId, scanData: item });
@@ -187,7 +213,7 @@ const WardrobeScreen = () => {
             <Image source={{ uri: imageUri }} style={styles.gridImage} resizeMode="cover" />
           ) : (
             <View style={[styles.gridImage, styles.gridPlaceholder]}>
-              <Ionicons name="shirt-outline" size={32} color={colors.textTertiary} />
+              <Ionicons name="shirt-outline" size={32} color={colors.textTertiary} accessible={false} />
             </View>
           )}
           {/* Grade badge */}
@@ -208,6 +234,9 @@ const WardrobeScreen = () => {
             style={[styles.heartButton, item.isFavorite && styles.heartButtonActive]}
             onPress={() => handleToggleFavorite(item)}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel={item.isFavorite ? `Remove ${item.name} from favourites` : `Add ${item.name} to favourites`}
+            accessibilityState={{ checked: item.isFavorite }}
           >
             <Ionicons
               name={item.isFavorite ? 'heart' : 'heart-outline'}
@@ -257,12 +286,19 @@ const WardrobeScreen = () => {
             <Text style={styles.subtitle}>{items.length} pieces in your collection</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerIconBtn} onPress={handleImportScans}>
+            <TouchableOpacity
+              style={styles.headerIconBtn}
+              onPress={handleImportScans}
+              accessibilityRole="button"
+              accessibilityLabel="Import scans to wardrobe"
+            >
               <Ionicons name="download-outline" size={18} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.outfitsBtn}
               onPress={() => navigation.navigate('Outfits')}
+              accessibilityRole="button"
+              accessibilityLabel="View outfits"
             >
               <Ionicons name="layers-outline" size={15} color="#FFFFFF" />
               <Text style={styles.outfitsBtnText}>Outfits</Text>
@@ -306,6 +342,9 @@ const WardrobeScreen = () => {
                 key={cat}
                 style={[styles.categoryChip, isActive && styles.categoryChipActive]}
                 onPress={() => handleCategoryChange(cat)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isActive }}
+                accessibilityLabel={cat}
               >
                 <Text style={[styles.categoryText, isActive && styles.categoryTextActive]}>
                   {cat}

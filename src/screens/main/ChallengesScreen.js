@@ -175,6 +175,9 @@ const ChallengesScreen = () => {
                 <TouchableOpacity
                   style={styles.joinButton}
                   onPress={() => handleJoinChallenge(challenge.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Join ${challenge.name}`}
+                  accessibilityHint="Adds this challenge to your active challenges"
                 >
                   <Text style={styles.joinText}>Join Challenge</Text>
                 </TouchableOpacity>
@@ -259,6 +262,8 @@ const ChallengesScreen = () => {
                     <TouchableOpacity
                       style={styles.shareButton}
                       onPress={() => handleShareAchievement(achievement.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Share ${achievement.name} achievement to feed`}
                     >
                       <Text style={styles.shareText}>Share to Feed</Text>
                     </TouchableOpacity>
@@ -321,6 +326,9 @@ const ChallengesScreen = () => {
           <TouchableOpacity
             style={[styles.tab, activeTab === 'challenges' && styles.tabActive]}
             onPress={() => setActiveTab('challenges')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'challenges' }}
+            accessibilityLabel="Challenges"
           >
             <Text style={[styles.tabText, activeTab === 'challenges' && styles.tabTextActive]}>
               Challenges
@@ -329,6 +337,9 @@ const ChallengesScreen = () => {
           <TouchableOpacity
             style={[styles.tab, activeTab === 'achievements' && styles.tabActive]}
             onPress={() => setActiveTab('achievements')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'achievements' }}
+            accessibilityLabel="Achievements"
           >
             <Text style={[styles.tabText, activeTab === 'achievements' && styles.tabTextActive]}>
               Achievements
@@ -340,6 +351,8 @@ const ChallengesScreen = () => {
         <TouchableOpacity
           style={styles.leaderboardLink}
           onPress={() => navigation.navigate('Leaderboard')}
+          accessibilityRole="link"
+          accessibilityLabel="View leaderboard"
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text style={styles.leaderboardLinkText}>View Leaderboard</Text>

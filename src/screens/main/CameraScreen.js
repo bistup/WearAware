@@ -356,6 +356,9 @@ const CameraScreen = () => {
                       selectedGender === 'mens' && styles.genderButtonActive,
                     ]}
                     onPress={() => setSelectedGender('mens')}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selectedGender === 'mens' }}
+                    accessibilityLabel="Men's"
                   >
                     <Text style={[
                       styles.genderButtonText,
@@ -370,6 +373,9 @@ const CameraScreen = () => {
                       selectedGender === 'womens' && styles.genderButtonActive,
                     ]}
                     onPress={() => setSelectedGender('womens')}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selectedGender === 'womens' }}
+                    accessibilityLabel="Women's"
                   >
                     <Text style={[
                       styles.genderButtonText,
@@ -384,6 +390,9 @@ const CameraScreen = () => {
                   style={[styles.secondHandToggle, isSecondHand && styles.secondHandToggleActive]}
                   onPress={() => setIsSecondHand(!isSecondHand)}
                   activeOpacity={0.7}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: isSecondHand }}
+                  accessibilityLabel="Second-hand / Pre-owned"
                 >
                   <Ionicons name={isSecondHand ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={isSecondHand ? colors.background : colors.textSecondary} />
                   <Text style={[styles.secondHandText, isSecondHand && styles.secondHandTextActive]}>Second-hand / Pre-owned</Text>

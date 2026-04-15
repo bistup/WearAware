@@ -163,6 +163,8 @@ const WishlistScreen = () => {
         <TouchableOpacity
           style={styles.scanButton}
           onPress={() => navigation.navigate('Camera')}
+          accessibilityRole="button"
+          accessibilityLabel="Start scanning"
         >
           <Text style={styles.scanButtonText}>Start Scanning</Text>
         </TouchableOpacity>

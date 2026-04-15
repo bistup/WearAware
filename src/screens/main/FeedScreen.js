@@ -140,6 +140,9 @@ const FeedScreen = () => {
         <TouchableOpacity
           style={styles.discoverButton}
           onPress={() => setActiveTab('discover')}
+          accessibilityRole="button"
+          accessibilityLabel="Discover users"
+          accessibilityHint="Switch to the Discover tab to find users to follow"
         >
           <Text style={styles.discoverButtonText}>Discover Users</Text>
         </TouchableOpacity>
@@ -161,6 +164,8 @@ const FeedScreen = () => {
           setSearchResults([]);
           navigation.navigate('SocialProfile', { firebaseUid: item.firebase_uid });
         }}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${name}'s profile, ${scans} scan${scans !== 1 ? 's' : ''}${score > 0 ? `, ${score} points` : ''}`}
       >
         <View style={styles.searchCardAvatar}>
           {item.avatar_url ? (
@@ -233,6 +238,9 @@ const FeedScreen = () => {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'following' && styles.tabActive]}
           onPress={() => setActiveTab('following')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'following' }}
+          accessibilityLabel="Following feed"
         >
           <Text style={[styles.tabText, activeTab === 'following' && styles.tabTextActive]}>
             Following
@@ -241,6 +249,9 @@ const FeedScreen = () => {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'discover' && styles.tabActive]}
           onPress={() => setActiveTab('discover')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'discover' }}
+          accessibilityLabel="Discover users"
         >
           <Text style={[styles.tabText, activeTab === 'discover' && styles.tabTextActive]}>
             Discover
@@ -249,6 +260,9 @@ const FeedScreen = () => {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'mine' && styles.tabActive]}
           onPress={() => setActiveTab('mine')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'mine' }}
+          accessibilityLabel="My posts"
         >
           <Text style={[styles.tabText, activeTab === 'mine' && styles.tabTextActive]}>
             My Posts

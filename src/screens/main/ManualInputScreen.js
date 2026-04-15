@@ -189,6 +189,9 @@ const ManualInputScreen = () => {
           <TouchableOpacity
             onPress={() => setShowItemTypePicker(true)}
             style={styles.itemTypeSelector}
+            accessibilityRole="button"
+            accessibilityLabel={itemType ? `Item type: ${itemType}` : 'Select item type'}
+            accessibilityHint="Opens item type picker"
           >
             <Text style={itemType ? styles.selectedItemType : styles.placeholderText}>
               {itemType || 'Select item type...'}
@@ -203,12 +206,18 @@ const ManualInputScreen = () => {
             <TouchableOpacity
               style={[styles.genderButton, selectedGender === 'mens' && styles.genderButtonActive]}
               onPress={() => setSelectedGender('mens')}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selectedGender === 'mens' }}
+              accessibilityLabel="Men's"
             >
               <Text style={[styles.genderButtonText, selectedGender === 'mens' && styles.genderButtonTextActive]}>Men's</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.genderButton, selectedGender === 'womens' && styles.genderButtonActive]}
               onPress={() => setSelectedGender('womens')}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selectedGender === 'womens' }}
+              accessibilityLabel="Women's"
             >
               <Text style={[styles.genderButtonText, selectedGender === 'womens' && styles.genderButtonTextActive]}>Women's</Text>
             </TouchableOpacity>
@@ -221,6 +230,9 @@ const ManualInputScreen = () => {
             style={[styles.secondHandToggle, isSecondHand && styles.secondHandToggleActive]}
             onPress={() => setIsSecondHand(!isSecondHand)}
             activeOpacity={0.7}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isSecondHand }}
+            accessibilityLabel="Second-hand / Pre-owned"
           >
             <Ionicons name={isSecondHand ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={isSecondHand ? colors.background : colors.textSecondary} />
             <Text style={[styles.secondHandText, isSecondHand && styles.secondHandTextActive]}>Second-hand / Pre-owned</Text>
@@ -240,6 +252,9 @@ const ManualInputScreen = () => {
               <TouchableOpacity
                 onPress={() => openFiberPicker(index)}
                 style={styles.fiberSelector}
+                accessibilityRole="button"
+                accessibilityLabel={fibers[index].name ? `Fiber ${index + 1}: ${fibers[index].name}` : `Select fiber ${index + 1} type`}
+                accessibilityHint="Opens fiber type picker"
               >
                 <Text style={fiber.name ? styles.selectedFiber : styles.placeholderText}>
                   {fiber.name || 'Select type...'}
@@ -286,16 +301,31 @@ const ManualInputScreen = () => {
           <View style={styles.imagePreviewContainer}>
             <Image source={{ uri: garmentImageUri }} style={styles.imagePreview} />
             <View style={styles.imageActions}>
-              <TouchableOpacity onPress={handlePickGarmentImage} style={styles.changeImageButton}>
+              <TouchableOpacity
+                onPress={handlePickGarmentImage}
+                style={styles.changeImageButton}
+                accessibilityRole="button"
+                accessibilityLabel="Change garment photo"
+              >
                 <Text style={styles.changeImageText}>Change Photo</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setGarmentImageUri(null)} style={styles.removeImageButton}>
+              <TouchableOpacity
+                onPress={() => setGarmentImageUri(null)}
+                style={styles.removeImageButton}
+                accessibilityRole="button"
+                accessibilityLabel="Remove garment photo"
+              >
                 <Text style={styles.removeImageText}>Remove</Text>
               </TouchableOpacity>
             </View>
           </View>
         ) : (
-          <TouchableOpacity onPress={handlePickGarmentImage} style={styles.imagePicker}>
+          <TouchableOpacity
+            onPress={handlePickGarmentImage}
+            style={styles.imagePicker}
+            accessibilityRole="button"
+            accessibilityLabel="Upload garment photo"
+          >
             <Ionicons name="image-outline" size={32} color={colors.textSecondary} style={{ marginBottom: spacing.xs }} />
             <Text style={styles.imagePickerText}>Upload Garment Photo</Text>
           </TouchableOpacity>

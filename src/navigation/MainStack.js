@@ -12,8 +12,6 @@ import BreakdownScreen from '../screens/main/BreakdownScreen';
 import EditScanScreen from '../screens/main/EditScanScreen';
 import ManualInputScreen from '../screens/main/ManualInputScreen';
 import CareInstructionsScreen from '../screens/main/CareInstructionsScreen';
-import ComparisonScreen from '../screens/main/ComparisonScreen';
-
 // social screens
 import CommentsScreen from '../screens/main/CommentsScreen';
 import SocialProfileScreen from '../screens/main/SocialProfileScreen';
@@ -67,7 +65,6 @@ const MainStack = () => {
       <Stack.Screen name="Breakdown" component={BreakdownScreen} />
       <Stack.Screen name="EditScan" component={EditScanScreen} />
       <Stack.Screen name="ManualInput" component={ManualInputScreen} />
-      <Stack.Screen name="Comparison" component={ComparisonScreen} />
 
       {/* Social */}
       <Stack.Screen name="Comments" component={CommentsScreen} />

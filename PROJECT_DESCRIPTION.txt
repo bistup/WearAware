@@ -3,7 +3,7 @@ WearAware — Sustainable Fashion Scanner
 
 Author: Caitriona McCann
 Started: November 2025
-Last Updated: March 2026
+Last Updated: April 2026
 
 
 OVERVIEW
@@ -12,13 +12,13 @@ OVERVIEW
 WearAware is a mobile application that helps users understand and reduce
 the environmental impact of their clothing. Users scan clothing care labels
 with their phone camera, and the app extracts fibre composition data,
-calculates sustainability metrics (water usage, CO2 emissions, microplastic
-shedding, chemical intensity), assigns a letter grade (A-F), and generates
-an AI-powered sustainability summary. After scanning, users can browse
-sustainable product alternatives and second-hand options. The app also
-includes social community features, gamification, wardrobe management,
-a community clothing marketplace, a trade and giveaway system with charity
-shop dropboxes, and direct messaging between users.
+calculates sustainability metrics (water usage and CO2 emissions per fibre
+type), assigns a letter grade (A-F), and generates an AI-powered
+sustainability summary. After scanning, users can browse sustainable product
+alternatives and second-hand options. The app also includes social community
+features, gamification, wardrobe management, a community clothing
+marketplace, a trade and giveaway system with charity shop dropboxes, and
+direct messaging between users.
 
 
 ARCHITECTURE
@@ -111,18 +111,13 @@ HOW IT WORKS — END-TO-END FLOW
      125,000L (Wool)
    - CO2 emissions (kg per kg) — ranges from 0.03 (Modal) to 10.4 (Wool)
    - Biodegradability — boolean + decomposition time
-   - Microplastic shedding (mg per kg per wash) — 0 for natural,
-     1600-2200 for synthetics
-   - Chemical intensity (0-100 scale)
-   - Renewable energy potential (0-100 scale)
-   - Water pollution (0-100 scale)
+   - Base sustainability score (0-100) encoding overall environmental impact
 
    The calculation:
-   a) Multiplies each fibre's impact metrics by its percentage and the
-      garment weight (looked up from the item_types table, default 300g)
-   b) Computes a weighted sustainability score (0-100)
-   c) Applies bonus/penalty modifiers based on microplastic, chemical,
-      renewable energy and pollution thresholds
+   a) Weighted average of each fibre's base score by its percentage
+   b) Multiplies water/CO2 rates by garment weight to get absolute usage
+   c) Applies a second-hand bonus (+15pts, water/CO2 reduced to 20%)
+      when the item was scanned as second-hand
    d) Assigns a letter grade: A (80+), B (65-79), C (50-64), D (35-49),
       F (<35)
 
@@ -279,13 +274,15 @@ Progress tracked incrementally. Achievements unlock automatically after
 qualifying events and award points.
 
 Challenges:
-  - Weekly and monthly time-limited challenges
-  - Users join challenges explicitly
-  - Progress updates triggered by backend events
+  - Time-limited weekly challenges (currently: Spring Scan Sprint Apr 14-21,
+    Eco Influence Apr 14-28)
+  - Users join challenges explicitly; progress tracked automatically
+  - scan_count challenges: progress updates on every scan
+  - share_count challenges: progress updates when a scan is shared to feed
 
 Leaderboard (src/screens/main/LeaderboardScreen.js):
   - Weekly, monthly and all-time rankings
-  - Scored by sustainability score + achievement points
+  - Score = scan points (A=10, B=8, C=6, D=4, F=2) + achievement points
   - Cached in Redis (5-minute TTL)
 
 
@@ -389,7 +386,7 @@ NAVIGATION STRUCTURE
 
 Detail screens stacked on top (src/navigation/MainStack.js):
   ScanResult, Breakdown, EditScan, ManualInput, CareInstructions,
-  Comparison, Comments, SocialProfile, FollowerList, EditProfile,
+  Comments, SocialProfile, FollowerList, EditProfile,
   Alternatives, Wishlist, Leaderboard, Challenges, Wardrobe, Outfits,
   Marketplace, Trade, Messages, Chat, CharityShops
 

@@ -1,7 +1,24 @@
 """
-ML Service for WearAware Visual Similarity
-Provides CLIP embeddings extraction via REST API
+ML Service for WearAware - CLIP Image Understanding
+Provides garment image description via REST API (Flask).
 Author: Caitriona McCann
+
+Overview:
+  This service runs the OpenAI CLIP model (clip-vit-base-patch16) locally
+  on the Proxmox server at port 5000. It is called by the Node.js backend's
+  webSearchService.js when building search queries for sustainable alternatives.
+
+Active endpoints:
+  GET  /health               - liveness check, returns model name and embedding dimension
+  POST /describe             - zero-shot garment description (color, pattern, style, type)
+                               Used by webSearchService to refine search queries
+  POST /extract-embedding    - returns raw 512-dim CLIP embedding for a single image URL
+  POST /extract-embedding-batch - returns embeddings for multiple image URLs
+
+The /extract-embedding endpoints are no longer called by the backend after
+visual similarity search was removed, but are kept for potential future use.
+CLIP model is loaded once on startup (takes ~10s) and stays in memory.
+GPU is used automatically if CUDA is available, otherwise falls back to CPU.
 """
 
 from flask import Flask, request, jsonify
@@ -13,7 +30,8 @@ import traceback
 app = Flask(__name__)
 CORS(app)
 
-# Initialize CLIP model (loaded once on startup)
+# load model once at startup - this is the expensive step (~200MB download on first run)
+# subsequent starts use the cached HuggingFace model from ~/.cache/huggingface/
 CLIP_MODEL_NAME = os.environ.get("CLIP_MODEL_NAME", "openai/clip-vit-base-patch16")
 print("Loading CLIP model...")
 clip_extractor = CLIPEmbeddingExtractor(model_name=CLIP_MODEL_NAME)

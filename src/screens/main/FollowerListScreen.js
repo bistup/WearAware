@@ -71,6 +71,8 @@ const FollowerListScreen = () => {
       <TouchableOpacity
         style={styles.userItem}
         onPress={() => navigation.push('SocialProfile', { firebaseUid: item.firebase_uid })}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${name}'s profile`}
       >
         <View style={styles.avatar}>
           {avatarUrl ? (

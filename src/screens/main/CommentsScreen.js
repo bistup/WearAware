@@ -96,7 +96,7 @@ const CommentsScreen = () => {
       <View style={[styles.commentItem, isReply && styles.replyItem]}>
         <View style={[styles.avatar, isReply && styles.replyAvatar]}>
           {authorAvatar ? (
-            <Image source={{ uri: authorAvatar }} style={styles.avatarImage} />
+            <Image source={{ uri: authorAvatar }} style={styles.avatarImage} accessible={false} />
           ) : (
             <Text style={styles.avatarText}>
               {authorName.charAt(0).toUpperCase()}
@@ -183,7 +183,11 @@ const CommentsScreen = () => {
             <Text style={styles.replyBannerText}>
               Replying to {replyTo.author_name || 'User'}
             </Text>
-            <TouchableOpacity onPress={() => setReplyTo(null)}>
+            <TouchableOpacity
+              onPress={() => setReplyTo(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel reply"
+            >
               <Ionicons name="close" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -199,11 +203,14 @@ const CommentsScreen = () => {
             multiline
             maxLength={500}
             textAlignVertical="top"
+            accessibilityLabel="Add a comment"
           />
           <TouchableOpacity
             style={[styles.sendButton, (!newComment.trim() || submitting) && styles.sendButtonDisabled]}
             onPress={handleSubmit}
             disabled={!postId || !newComment.trim() || submitting}
+            accessibilityRole="button"
+            accessibilityLabel="Send comment"
           >
             {submitting ? (
               <ActivityIndicator size="small" color={colors.surface} />

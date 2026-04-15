@@ -121,6 +121,8 @@ const EditScanScreen = () => {
             <TouchableOpacity
               onPress={() => handleRemoveFiber(index)}
               style={styles.removeButton}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove fiber ${index + 1}`}
             >
               <Ionicons name="close-circle-outline" size={24} color={colors.error} />
             </TouchableOpacity>

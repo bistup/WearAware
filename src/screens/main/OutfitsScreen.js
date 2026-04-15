@@ -1,7 +1,34 @@
 // author: caitriona mccann
 // date: 12/03/2026
-// outfits screen - create outfits from wardrobe items and plan weekly looks
-// swipe through days of the week, add/remove items to build outfits
+// last updated: 14/04/2026
+// outfits screen - weekly outfit planner using wardrobe items
+//
+// concept:
+//   users build named outfits from their wardrobe items and optionally assign
+//   each outfit to a specific day of the week (Monday-Sunday).
+//   the top section shows the current day's outfit by default.
+//   the "All Outfits" section lists every saved outfit below.
+//
+// data model:
+//   outfits table     - id, name, day_of_week (null if unscheduled), user_id
+//   outfit_items table - outfit_id → wardrobe_item_id (many-to-many)
+//
+// backend endpoints used:
+//   fetchWeeklyOutfits() → GET /api/outfits/weekly
+//     returns { weekly: { Monday: [...outfits], Tuesday: [...], ... } }
+//   fetchOutfits()        → GET /api/outfits
+//     returns all outfits regardless of day
+//   createOutfit(name, dayOfWeek, itemIds) → POST /api/outfits
+//   updateOutfit(id, name, dayOfWeek, itemIds) → PUT /api/outfits/:id
+//   deleteOutfit(id)      → DELETE /api/outfits/:id
+//
+// create flow:
+//   1. tap "New Outfit" button → shows create modal
+//   2. enter outfit name, select optional day, pick wardrobe items from grid
+//   3. confirm → createOutfit() → reload data
+//
+// wardrobe items for the picker are loaded lazily (only when modal opens)
+// to avoid fetching all wardrobe data on initial screen load.
 
 import React, { useState, useCallback } from 'react';
 import {
@@ -214,7 +241,12 @@ const OutfitsScreen = () => {
         </TouchableOpacity>
         <View style={styles.headerRow}>
           <Text style={styles.title}>Outfits</Text>
-          <TouchableOpacity style={styles.addButton} onPress={handleOpenCreate}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={handleOpenCreate}
+            accessibilityRole="button"
+            accessibilityLabel="Create new outfit"
+          >
             <Ionicons name="add" size={20} color={colors.background} />
             <Text style={styles.addButtonText}>New</Text>
           </TouchableOpacity>
@@ -238,6 +270,9 @@ const OutfitsScreen = () => {
               key={day}
               style={[styles.dayTab, isActive && styles.dayTabActive]}
               onPress={() => setActiveDay(day)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+              accessibilityLabel={`${day}${isToday ? ', today' : ''}${hasOutfits ? ', has outfits' : ''}`}
             >
               <Text style={[styles.dayTabText, isActive && styles.dayTabTextActive]}>
                 {DAY_SHORT[day]}
@@ -272,7 +307,12 @@ const OutfitsScreen = () => {
             <View style={styles.emptyDay}>
               <Ionicons name="shirt-outline" size={32} color={colors.textTertiary} />
               <Text style={styles.emptyDayText}>No outfits planned for {activeDay}</Text>
-              <TouchableOpacity style={styles.emptyDayAction} onPress={handleOpenCreate}>
+              <TouchableOpacity
+                style={styles.emptyDayAction}
+                onPress={handleOpenCreate}
+                accessibilityRole="button"
+                accessibilityLabel="Plan an outfit for this day"
+              >
                 <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
                 <Text style={styles.emptyDayActionText}>Plan an outfit</Text>
               </TouchableOpacity>
@@ -293,11 +333,19 @@ const OutfitsScreen = () => {
       <Modal visible={showCreateModal} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+            <TouchableOpacity
+              onPress={() => setShowCreateModal(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
               <Ionicons name="close" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>New Outfit</Text>
-            <TouchableOpacity onPress={handleCreate}>
+            <TouchableOpacity
+              onPress={handleCreate}
+              accessibilityRole="button"
+              accessibilityLabel="Save outfit"
+            >
               <Text style={styles.modalSave}>Save</Text>
             </TouchableOpacity>
           </View>
@@ -311,6 +359,7 @@ const OutfitsScreen = () => {
               onChangeText={setNewName}
               placeholder="e.g. Casual Friday, Gym Look..."
               placeholderTextColor={colors.textTertiary}
+              accessibilityLabel="Outfit name"
             />
 
             {/* Day picker */}
@@ -323,6 +372,9 @@ const OutfitsScreen = () => {
               <TouchableOpacity
                 style={[styles.dayPickerChip, !newDay && styles.dayPickerChipActive]}
                 onPress={() => setNewDay(null)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: !newDay }}
+                accessibilityLabel="No specific day"
               >
                 <Text style={[styles.dayPickerText, !newDay && styles.dayPickerTextActive]}>None</Text>
               </TouchableOpacity>
@@ -331,6 +383,9 @@ const OutfitsScreen = () => {
                   key={day}
                   style={[styles.dayPickerChip, newDay === day && styles.dayPickerChipActive]}
                   onPress={() => setNewDay(day)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: newDay === day }}
+                  accessibilityLabel={day}
                 >
                   <Text style={[styles.dayPickerText, newDay === day && styles.dayPickerTextActive]}>
                     {DAY_SHORT[day]}
@@ -355,6 +410,8 @@ const OutfitsScreen = () => {
                         key={item.id}
                         style={styles.selectedThumb}
                         onPress={() => handleToggleItem(item)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${item.name} from outfit`}
                       >
                         {imageUri ? (
                           <Image source={{ uri: imageUri }} style={styles.selectedImage} resizeMode="cover" />
@@ -394,6 +451,9 @@ const OutfitsScreen = () => {
                       style={[styles.pickerCard, isSelected && styles.pickerCardSelected]}
                       onPress={() => handleToggleItem(item)}
                       activeOpacity={0.7}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isSelected }}
+                      accessibilityLabel={item.name}
                     >
                       <View style={styles.pickerImageContainer}>
                         {imageUri ? (

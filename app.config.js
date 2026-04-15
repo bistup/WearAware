@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || 'AIzaSyBQqrohni1cuiDmYwcFePiFYisClQ6j6Hg';
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 export default {
   expo: {
