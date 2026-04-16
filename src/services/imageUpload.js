@@ -7,9 +7,9 @@
 
 import { auth } from '../config/firebase';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { BACKEND_API_URL } from '@env';
+import Constants from 'expo-constants';
 
-const UPLOAD_URL = `${BACKEND_API_URL || 'http://localhost:3000/api'}/uploads/image`;
+const UPLOAD_URL = `${Constants.expoConfig.extra.backendApiUrl || 'http://localhost:3000/api'}/uploads/image`;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

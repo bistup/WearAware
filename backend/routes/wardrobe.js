@@ -70,7 +70,13 @@ router.post('/', async (req, res) => {
       `INSERT INTO wardrobe_items (user_id, scan_id, name, brand, item_type, color, size, category, notes, image_url, thumbnail_url, environmental_grade, environmental_score, fibers)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
-      [userId, scanId || null, name, brand || null, itemType || null, color || null, size || null, category || 'General', notes || null, imageUrl || null, thumbnailUrl || null, environmentalGrade || null, environmentalScore || null, fibers ? JSON.stringify(fibers) : null]
+      [
+        userId, scanId || null, name, brand || null,
+        itemType || null, color || null, size || null, category || 'General',
+        notes || null, imageUrl || null, thumbnailUrl || null,
+        environmentalGrade || null, environmentalScore || null,
+        fibers ? JSON.stringify(fibers) : null,
+      ]
     );
 
     res.json({

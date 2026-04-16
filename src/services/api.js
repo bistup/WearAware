@@ -18,10 +18,10 @@
 // and is loaded via react-native-dotenv / babel-plugin-module-resolver.
 
 import { auth } from '../config/firebase';
-import { BACKEND_API_URL as ENV_BACKEND_URL } from '@env';
+import Constants from 'expo-constants';
 
-// fall back to localhost in dev if .env is missing
-const BACKEND_API_URL = ENV_BACKEND_URL || 'http://localhost:3000/api';
+// loaded from app.config.js extra (baked in at build time via process.env on EAS)
+const BACKEND_API_URL = Constants.expoConfig.extra.backendApiUrl || 'http://localhost:3000/api';
 
 // returns the firebase uid of the currently logged-in user (null for guests)
 const getUid = () => auth.currentUser?.uid;

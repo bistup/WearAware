@@ -7,7 +7,6 @@ import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { ThemeProvider, THEME_MODE_KEY, useThemeMode } from './src/context/ThemeContext';
 import { applyTheme, colors } from './src/theme/theme';
@@ -31,14 +30,12 @@ const AppShell = ({ RootNavigator }) => {
   };
 
   return (
-    <SafeAreaProvider initialMetrics={initialWindowMetrics ?? { frame: { x: 0, y: 0, width: 0, height: 0 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
-      <AuthProvider>
-        <NavigationContainer theme={navigationTheme}>
-          <RootNavigator />
-          <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-        </NavigationContainer>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <AuthProvider>
+      <NavigationContainer theme={navigationTheme}>
+        <RootNavigator />
+        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+      </NavigationContainer>
+    </AuthProvider>
   );
 };
 

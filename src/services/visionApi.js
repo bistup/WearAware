@@ -12,10 +12,9 @@
 // GOOGLE_VISION_API_KEY is loaded from .env via babel-plugin-module-resolver
 // (configured in babel.config.js under module-resolver plugins)
 
-// loaded from .env via react-native-dotenv
-import { GOOGLE_VISION_API_KEY } from '@env';
-// build the full Vision API URL with the API key as a query param
-const VISION_API_URL = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`;
+import Constants from 'expo-constants';
+// loaded from app.config.js extra (baked in at build time via process.env on EAS)
+const VISION_API_URL = `https://vision.googleapis.com/v1/images:annotate?key=${Constants.expoConfig.extra.googleVisionApiKey}`;
 
 /**
  * Send a base64-encoded image to Google Cloud Vision API for OCR.
