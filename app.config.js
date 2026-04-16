@@ -37,6 +37,14 @@ export default {
     },
     plugins: [
       [
+        'expo-build-properties',
+        {
+          android: {
+            newArchEnabled: false,
+          },
+        },
+      ],
+      [
         'expo-camera',
         {
           cameraPermission:
