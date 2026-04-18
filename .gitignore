@@ -60,3 +60,13 @@ coverage/
 
 # Temporary files
 .cache/
+
+# Android local build folder (excluded from EAS via .easignore)
+android/
+
+# Python virtual environment
+.venv/
+
+# Test coverage
+.coverage
+

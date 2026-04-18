@@ -14,96 +14,61 @@ const mlService = require('../services/mlService');
 // calculates environmental impact from fiber composition and garment weight
 // mUST stay in sync with src/utils/impactCalculator.js
 function calculateEnvironmentalImpact(fibers, weightGrams, isSecondHand = false) {
-  // impact data per kg: water (liters), carbon (kg co2), sustainability score, microplastics, chemicals, etc.
+  // impact data per kg: water (liters), carbon (kg co2), sustainability score
+  // must stay in sync with src/utils/impactCalculator.js FIBER_IMPACTS
   const fiberImpact = {
     // natural fibers
-    Cotton: { water: 10000, carbon: 1.55, score: 60, microplastic: 0, chemical: 65, renewable: 40, pollution: 60 },
-    'Organic Cotton': { water: 5000, carbon: 1.0, score: 80, microplastic: 0, chemical: 15, renewable: 60, pollution: 20 },
-    Flax: { water: 2500, carbon: 0.66, score: 85, microplastic: 0, chemical: 10, renewable: 75, pollution: 15 },
-    Linen: { water: 2500, carbon: 0.66, score: 85, microplastic: 0, chemical: 10, renewable: 75, pollution: 15 },
-    Jute: { water: 2000, carbon: 0.67, score: 82, microplastic: 0, chemical: 12, renewable: 70, pollution: 18 },
-    Hemp: { water: 2500, carbon: 0.70, score: 84, microplastic: 0, chemical: 8, renewable: 80, pollution: 10 },
-    Ramie: { water: 2800, carbon: 1.77, score: 68, microplastic: 0, chemical: 30, renewable: 55, pollution: 35 },
-    Kenaf: { water: 2200, carbon: 0.60, score: 83, microplastic: 0, chemical: 10, renewable: 75, pollution: 15 },
-    Sisal: { water: 1800, carbon: 0.27, score: 88, microplastic: 0, chemical: 5, renewable: 85, pollution: 8 },
-    Bamboo: { water: 3000, carbon: 3.90, score: 55, microplastic: 0, chemical: 50, renewable: 65, pollution: 45 },
-    'Pineapple Leaf': { water: 2000, carbon: 0.78, score: 82, microplastic: 0, chemical: 15, renewable: 70, pollution: 20 },
-    'Banana Leaf': { water: 1500, carbon: 0.40, score: 86, microplastic: 0, chemical: 10, renewable: 80, pollution: 12 },
-    'Corn Husk': { water: 1800, carbon: 0.74, score: 83, microplastic: 0, chemical: 18, renewable: 72, pollution: 22 },
-    'Soy Protein': { water: 1600, carbon: 0.35, score: 87, microplastic: 0, chemical: 12, renewable: 78, pollution: 15 },
-    Nettle: { water: 1900, carbon: 0.40, score: 86, microplastic: 0, chemical: 8, renewable: 82, pollution: 10 },
-    Bhimal: { water: 2100, carbon: 0.82, score: 81, microplastic: 0, chemical: 20, renewable: 68, pollution: 25 },
-    'Sugarcane Bagasse': { water: 1700, carbon: 0.68, score: 84, microplastic: 0, chemical: 15, renewable: 75, pollution: 18 },
-    
+    Cotton: { water: 9113, carbon: 4.7, score: 60 },
+    'Organic Cotton': { water: 5000, carbon: 1.0, score: 80 },
+    Flax: { water: 3481, carbon: 0.66, score: 85 },
+    Linen: { water: 3481, carbon: 0.66, score: 85 },
+    Jute: { water: 2605, carbon: 0.67, score: 82 },
+    Hemp: { water: 2447, carbon: 0.70, score: 84 },
+    Ramie: { water: 4507, carbon: 1.77, score: 68 },
+    Kenaf: { water: 2200, carbon: 0.60, score: 83 },
+    Sisal: { water: 7041, carbon: 0.27, score: 88 },
+    Bamboo: { water: 3000, carbon: 3.90, score: 55 },
+    'Pineapple Leaf': { water: 2000, carbon: 0.78, score: 82 },
+    'Banana Leaf': { water: 1500, carbon: 0.40, score: 86 },
+    'Corn Husk': { water: 1800, carbon: 0.74, score: 83 },
+    'Soy Protein': { water: 1600, carbon: 0.35, score: 87 },
+    Nettle: { water: 1900, carbon: 0.40, score: 86 },
+    Bhimal: { water: 2100, carbon: 0.82, score: 81 },
+    'Sugarcane Bagasse': { water: 1700, carbon: 0.68, score: 84 },
+
     // animal fibers
-    Wool: { water: 125000, carbon: 10.4, score: 45, microplastic: 0, chemical: 55, renewable: 30, pollution: 70 },
-    Silk: { water: 3400, carbon: 4.5, score: 50, microplastic: 0, chemical: 40, renewable: 45, pollution: 50 },
-    
+    Wool: { water: 125000, carbon: 10.4, score: 45 },
+    Silk: { water: 3400, carbon: 4.5, score: 50 },
+
     // synthetic fibers
-    Polyester: { water: 45, carbon: 9.52, score: 30, microplastic: 1900, chemical: 85, renewable: 5, pollution: 90 },
-    Nylon: { water: 250, carbon: 7.6, score: 35, microplastic: 1600, chemical: 80, renewable: 8, pollution: 85 },
-    Acrylic: { water: 132, carbon: 8.5, score: 25, microplastic: 2200, chemical: 90, renewable: 3, pollution: 95 },
-    Spandex: { water: 120, carbon: 9.0, score: 20, microplastic: 1800, chemical: 92, renewable: 2, pollution: 92 },
-    Elastane: { water: 120, carbon: 9.0, score: 20, microplastic: 1800, chemical: 92, renewable: 2, pollution: 92 },
-    
+    Polyester: { water: 50, carbon: 11.9, score: 30 },
+    Nylon: { water: 250, carbon: 7.6, score: 35 },
+    Acrylic: { water: 132, carbon: 8.5, score: 25 },
+    Spandex: { water: 120, carbon: 9.0, score: 20 },
+    Elastane: { water: 120, carbon: 9.0, score: 20 },
+
     // regenerated fibers
-    Rayon: { water: 400, carbon: 1.2, score: 58, microplastic: 0, chemical: 70, renewable: 35, pollution: 65 },
-    Viscose: { water: 400, carbon: 1.2, score: 58, microplastic: 0, chemical: 70, renewable: 35, pollution: 65 },
-    Modal: { water: 350, carbon: 0.03, score: 75, microplastic: 0, chemical: 30, renewable: 70, pollution: 25 },
-    Lyocell: { water: 200, carbon: 0.05, score: 80, microplastic: 0, chemical: 15, renewable: 85, pollution: 12 },
-    Tencel: { water: 200, carbon: 0.05, score: 80, microplastic: 0, chemical: 15, renewable: 85, pollution: 12 },
+    Rayon: { water: 400, carbon: 1.2, score: 58 },
+    Viscose: { water: 400, carbon: 1.2, score: 58 },
+    Modal: { water: 350, carbon: 0.03, score: 75 },
+    Lyocell: { water: 200, carbon: 3.16, score: 80 },
+    Tencel: { water: 200, carbon: 3.16, score: 80 },
   };
 
   let totalWater = 0;
   let totalCarbon = 0;
   let weightedScore = 0;
-  let totalMicroplastics = 0;
-  let totalChemicalImpact = 0;
-  let totalRenewableEnergy = 0;
-  let totalWaterPollution = 0;
 
-  const weightKg = weightGrams / 1000; // convert to kg
+  const weightKg = weightGrams / 1000;
 
-  // calculate the weighted impact based on fiber percentages
   fibers.forEach((fiber) => {
-    const impact = fiberImpact[fiber.name] || fiberImpact['Cotton']; // fallback to cotton
+    const impact = fiberImpact[fiber.name] || fiberImpact['Cotton'];
     const percentage = fiber.percentage / 100;
 
     totalWater += impact.water * weightKg * percentage;
     totalCarbon += impact.carbon * weightKg * percentage;
     weightedScore += impact.score * percentage;
-    
-    // enhanced metrics
-    totalMicroplastics += impact.microplastic * weightKg * percentage;
-    totalChemicalImpact += impact.chemical * percentage;
-    totalRenewableEnergy += impact.renewable * percentage;
-    totalWaterPollution += impact.pollution * percentage;
   });
-
-  // apply penalty/bonus based on enhanced metrics
-  if (totalMicroplastics > 1000) {
-    weightedScore -= 5;
-  } else if (totalMicroplastics > 500) {
-    weightedScore -= 3;
-  }
-
-  if (totalChemicalImpact > 70) {
-    weightedScore -= 4;
-  } else if (totalChemicalImpact > 50) {
-    weightedScore -= 2;
-  }
-
-  if (totalRenewableEnergy > 70) {
-    weightedScore += 3;
-  } else if (totalRenewableEnergy > 50) {
-    weightedScore += 1;
-  }
-
-  if (totalWaterPollution > 70) {
-    weightedScore -= 3;
-  } else if (totalWaterPollution > 50) {
-    weightedScore -= 1;
-  }
 
   // second-hand bonus: reusing avoids ~80% of production impact
   if (isSecondHand) {

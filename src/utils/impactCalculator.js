@@ -17,8 +17,8 @@
 const FIBER_IMPACTS = {
   // natural fibers
   Cotton: {
-    waterUsage: 10000,
-    co2: 1.55,
+    waterUsage: 9113,
+    co2: 4.7,
     biodegradable: true,
     biodegradabilityTime: '1-5 months',
     baseScore: 60,
@@ -31,33 +31,33 @@ const FIBER_IMPACTS = {
     baseScore: 80,
   },
   Flax: {
-    waterUsage: 2500,
+    waterUsage: 3481,
     co2: 0.66,
     biodegradable: true,
     baseScore: 85,
   },
   Linen: {
-    waterUsage: 2500,
+    waterUsage: 3481,
     co2: 0.66,
     biodegradable: true,
     biodegradabilityTime: '2 weeks',
     baseScore: 85,
   },
   Jute: {
-    waterUsage: 2000,
+    waterUsage: 2605,
     co2: 0.67,
     biodegradable: true,
     baseScore: 82,
   },
   Hemp: {
-    waterUsage: 2500,
+    waterUsage: 2447,
     co2: 0.70,
     biodegradable: true,
     biodegradabilityTime: '2-8 weeks',
     baseScore: 84,
   },
   Ramie: {
-    waterUsage: 2800,
+    waterUsage: 4507,
     co2: 1.77,
     biodegradable: true,
     baseScore: 68,
@@ -69,7 +69,7 @@ const FIBER_IMPACTS = {
     baseScore: 83,
   },
   Sisal: {
-    waterUsage: 1800,
+    waterUsage: 7041,
     co2: 0.27,
     biodegradable: true,
     baseScore: 88,
@@ -141,8 +141,8 @@ const FIBER_IMPACTS = {
 
   // synthetic fibers - petroleum-based, non-biodegradable, low baseScore
   Polyester: {
-    waterUsage: 45,
-    co2: 9.52,
+    waterUsage: 50,
+    co2: 11.9,
     biodegradable: false,
     biodegradabilityTime: '200+ years',
     baseScore: 30,
@@ -195,14 +195,14 @@ const FIBER_IMPACTS = {
   },
   Lyocell: {
     waterUsage: 200,
-    co2: 0.05,
+    co2: 3.16,
     biodegradable: true,
     biodegradabilityTime: '4-6 weeks',
     baseScore: 80,
   },
   Tencel: {
     waterUsage: 200,
-    co2: 0.05,
+    co2: 3.16,
     biodegradable: true,
     biodegradabilityTime: '4-6 weeks',
     baseScore: 80,

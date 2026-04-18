@@ -58,15 +58,17 @@ const ExportModal = ({ visible, scans, selectedScans: initialSelected = [], onCl
       return;
     }
     setExporting(true);
+    let success = false;
     try {
       await exportAsCSV(scansToExport);
       showAlert('Success', `Exported ${scansToExport.length} scan(s) as CSV`);
-      onClose();
+      success = true;
     } catch (error) {
       showAlert('Error', 'Failed to export CSV: ' + error.message);
     } finally {
       setExporting(false);
     }
+    if (success) onClose();
   };
 
   const handleExportText = async () => {
@@ -75,15 +77,17 @@ const ExportModal = ({ visible, scans, selectedScans: initialSelected = [], onCl
       return;
     }
     setExporting(true);
+    let success = false;
     try {
       await exportAsText(scansToExport);
       showAlert('Success', `Exported ${scansToExport.length} scan(s) as TXT`);
-      onClose();
+      success = true;
     } catch (error) {
       showAlert('Error', 'Failed to export report: ' + error.message);
     } finally {
       setExporting(false);
     }
+    if (success) onClose();
   };
 
   const handleExportPDF = async () => {
@@ -92,15 +96,17 @@ const ExportModal = ({ visible, scans, selectedScans: initialSelected = [], onCl
       return;
     }
     setExporting(true);
+    let success = false;
     try {
       await exportAsPDF(scansToExport);
       showAlert('Success', `Exported ${scansToExport.length} scan(s) as PDF`);
-      onClose();
+      success = true;
     } catch (error) {
       showAlert('Error', 'Failed to export PDF: ' + error.message);
     } finally {
       setExporting(false);
     }
+    if (success) onClose();
   };
 
   const stats = generateStatistics(scansToExport);

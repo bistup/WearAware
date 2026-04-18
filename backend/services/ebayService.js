@@ -65,7 +65,12 @@ async function searchSecondHand(query, options = {}) {
     };
   }
 
-  const { limit = 10 } = options;
+  const { limit = 10, gender } = options;
+
+  // eBay category IDs: 1059 = Men's Clothing, 15724 = Women's Clothing, 11450 = All Clothing
+  const genderCategory = gender === 'Men' || gender === 'male' ? '1059'
+    : gender === 'Women' || gender === 'female' ? '15724'
+    : '11450';
 
   try {
     const token = await getAccessToken();
@@ -73,7 +78,7 @@ async function searchSecondHand(query, options = {}) {
     const params = new URLSearchParams({
       q: query,
       limit: limit.toString(),
-      category_ids: '11450',
+      category_ids: genderCategory,
       filter: 'conditionIds:{3000|2500|2000|1500}',
     });
 

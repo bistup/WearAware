@@ -1,5 +1,5 @@
 Author: Caitriona McCann
-Last Updated: 14/04/2026
+Last Updated: 18/04/2026
 WearAware — Sustainable Fashion Scanner
 
 WearAware is a React Native mobile application that scans clothing care
@@ -58,6 +58,8 @@ KEY FEATURES:
 - Direct messaging between users
 - Clothing trade system with charity shop dropbox allocation and PIN codes
 - Nearby charity shops map using device location
+- Sustainability insights: environmental impact trends and charts over time
+- Data privacy and GDPR: view stored data, delete images or full account
 - Redis caching throughout (graceful fallback when unavailable)
 - WCAG 2.1 AA and EU Accessibility Act compliant across all screens
 
@@ -79,6 +81,8 @@ COMPONENT INTERACTION:
 - MarketplaceScreen shows community free and trade listings
 - TradeScreen handles trade requests with charity shop dropbox allocation
 - CharityShopsScreen shows nearby charity shops using device location
+- SustainabilityScreen shows environmental impact trends and charts over time
+- DataPrivacyScreen handles GDPR requests including image and account deletion
 - cache.js manages Redis caching with purpose-specific TTLs
 
 SETUP STEPS:
@@ -88,6 +92,7 @@ SETUP STEPS:
    - Create database: CREATE DATABASE wearaware;
    - Run core schema: psql -U postgres -d wearaware -f backend/database/schema.sql
    - Run social schema: psql -U postgres -d wearaware -f backend/database/social_schema.sql
+   - Run messaging schema: psql -U postgres -d wearaware -f backend/database/messaging_schema.sql
 
 2. Redis Setup:
    - Install Redis and start the service
@@ -116,6 +121,7 @@ SETUP STEPS:
      * EBAY_CERT_ID=your_ebay_cert_id
      * ML_SERVICE_URL=http://localhost:5000
      * OLLAMA_HOST=localhost
+     * GOOGLE_PLACES_API_KEY=your_google_places_api_key
    - Start server: npm start
    - Verify at http://localhost:3000/api/health
 
@@ -140,3 +146,4 @@ REQUIRED CREDENTIALS:
 - Google Cloud service account JSON with Discovery Engine permissions
 - PostgreSQL password (set during PostgreSQL installation)
 - eBay App ID and Cert ID (register at developer.ebay.com)
+- Google Places API key (enable Places API in Google Cloud Console)

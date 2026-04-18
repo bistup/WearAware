@@ -8,9 +8,20 @@
 import pytest
 import sys
 import os
+import tempfile
+from PIL import Image
 
 # add ml-service directory to path so app and clip_model can be imported
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
+@pytest.fixture(scope='module')
+def test_image_path(tmp_path_factory):
+    """Create a small solid-colour RGB JPEG for use as a local test fixture."""
+    img = Image.new('RGB', (224, 224), color=(100, 149, 237))
+    path = tmp_path_factory.mktemp('fixtures') / 'test_garment.jpg'
+    img.save(str(path), 'JPEG')
+    return str(path)
 
 
 @pytest.fixture(scope='module')
@@ -41,11 +52,9 @@ def test_health_endpoint(client):
 
 
 # UT-07: extract-embedding returns a 512-dimensional float list
-def test_embedding_response_structure(client):
-    # Arrange — use a small publicly accessible test image
-    payload = {
-        'image_url': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png'
-    }
+def test_embedding_response_structure(client, test_image_path):
+    # Arrange — use a local test image to avoid network dependency
+    payload = {'image_url': test_image_path}
 
     # Act
     response = client.post('/extract-embedding', json=payload)
@@ -60,11 +69,9 @@ def test_embedding_response_structure(client):
 
 
 # UT-08: describe endpoint returns all four expected classification categories
-def test_describe_response_structure(client):
-    # Arrange
-    payload = {
-        'image_url': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png'
-    }
+def test_describe_response_structure(client, test_image_path):
+    # Arrange — use a local test image to avoid network dependency
+    payload = {'image_url': test_image_path}
 
     # Act
     response = client.post('/describe', json=payload)

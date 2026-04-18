@@ -98,13 +98,18 @@ async function searchAlternatives(itemType, primaryFiber, options = {}) {
     // step 4: request more results than needed (limit * 2) so we can filter poor ones
     const searchResult = await vertexAi.groundedSearch(query, limit * 2);
 
+    const womenTerms = /\b(women'?s?|woman'?s?|ladies|feminine|girls?)\b/i;
+    const menTerms = /\b(men'?s?|man'?s?|masculine|boys?)\b/i;
+
     // step 5: filter out results that lack images or look like non-product pages
     const filtered = (searchResult.results || []).filter(r => {
-      // skip results with no image — they make poor product cards
       if (!r.imageUrl) return false;
-      // skip obvious non-product URL patterns (blog posts, about pages, etc.)
       const url = (r.link || '').toLowerCase();
       if (url.match(/\/(about|blog|journal|story|sustainability|careers|press|contact|faq)\/?$/)) return false;
+      // filter out results for the wrong gender based on title
+      const title = (r.title || '').toLowerCase();
+      if ((gender === 'mens' || gender === 'male' || gender === 'Men') && womenTerms.test(title)) return false;
+      if ((gender === 'womens' || gender === 'female' || gender === 'Women') && menTerms.test(title)) return false;
       return true;
     }).slice(0, limit);  // trim to the requested limit after filtering
 

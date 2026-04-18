@@ -69,10 +69,8 @@ const BreakdownScreen = () => {
             {water_usage_liters != null && (
               <ImpactMetric
                 label="Water Footprint"
-                value={typeof water_usage_liters === 'number'
-                  ? (water_usage_liters >= 1000 ? (water_usage_liters / 1000).toFixed(1) : water_usage_liters.toFixed(1))
-                  : water_usage_liters}
-                unit={typeof water_usage_liters === 'number' && water_usage_liters >= 1000 ? 'kL' : 'litres'}
+                value={typeof water_usage_liters === 'number' ? Math.round(water_usage_liters) : water_usage_liters}
+                unit="litres"
               />
             )}
             {carbon_footprint_kg != null && (

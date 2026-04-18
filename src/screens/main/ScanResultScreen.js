@@ -42,6 +42,15 @@ import { deleteScan, saveScanToBackend, generateAiSummary, generateAiSummaryFrom
 import { createPost, checkAchievements, updateChallengeProgress } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
+import { ITEM_TYPES } from '../../constants/constants';
+
+const getCategoryFromItemType = (itemType) => {
+  const VALID = ['Tops', 'Bottoms', 'Dresses', 'Outerwear', 'Activewear', 'Accessories'];
+  const found = ITEM_TYPES.find(t => t.name === itemType);
+  if (!found) return 'General';
+  const cat = found.category.charAt(0).toUpperCase() + found.category.slice(1);
+  return VALID.includes(cat) ? cat : 'General';
+};
 
 const ScanResultScreen = () => {
   const navigation = useNavigation();
@@ -225,8 +234,7 @@ const ScanResultScreen = () => {
 
   const formatWater = (val) => {
     if (val == null || typeof val !== 'number') return '--';
-    if (val >= 1000) return (val / 1000).toFixed(1) + 'kL';
-    return val.toFixed(1) + 'L';
+    return Math.round(val) + 'L';
   };
   const formatCarbon = (val) => {
     if (val == null || typeof val !== 'number') return '--';
@@ -491,6 +499,7 @@ const ScanResultScreen = () => {
                       name: updatedScanData.brand ? `${updatedScanData.brand} ${updatedScanData.itemType || 'Item'}` : (updatedScanData.itemType || 'Scanned Item'),
                       brand: updatedScanData.brand,
                       itemType: updatedScanData.itemType,
+                      category: getCategoryFromItemType(updatedScanData.itemType),
                       imageUrl: updatedScanData.imageUrl || updatedScanData.image_url,
                       thumbnailUrl: updatedScanData.thumbnailUrl || updatedScanData.thumbnail_url,
                       environmentalGrade: updatedScanData.grade,
@@ -527,6 +536,7 @@ const ScanResultScreen = () => {
                               name: updatedScanData.brand ? `${updatedScanData.brand} ${updatedScanData.itemType || 'Item'}` : (updatedScanData.itemType || 'Scanned Item'),
                               brand: updatedScanData.brand,
                               itemType: updatedScanData.itemType,
+                              category: getCategoryFromItemType(updatedScanData.itemType),
                               imageUrl: updatedScanData.imageUrl || updatedScanData.image_url,
                               thumbnailUrl: updatedScanData.thumbnailUrl || updatedScanData.thumbnail_url,
                               environmentalGrade: updatedScanData.grade,
@@ -550,6 +560,7 @@ const ScanResultScreen = () => {
                               name: updatedScanData.brand ? `${updatedScanData.brand} ${updatedScanData.itemType || 'Item'}` : (updatedScanData.itemType || 'Scanned Item'),
                               brand: updatedScanData.brand,
                               itemType: updatedScanData.itemType,
+                              category: getCategoryFromItemType(updatedScanData.itemType),
                               imageUrl: updatedScanData.imageUrl || updatedScanData.image_url,
                               thumbnailUrl: updatedScanData.thumbnailUrl || updatedScanData.thumbnail_url,
                               environmentalGrade: updatedScanData.grade,

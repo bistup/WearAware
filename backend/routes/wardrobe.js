@@ -293,7 +293,23 @@ router.post('/import-scans', async (req, res) => {
        SELECT s.user_id, s.id,
          COALESCE(NULLIF(s.brand, '') || ' ' || COALESCE(NULLIF(s.item_type, ''), 'Item'), COALESCE(NULLIF(s.item_type, ''), 'Scanned Item')),
          s.brand, s.item_type, s.image_url, s.thumbnail_url,
-         s.environmental_grade, s.environmental_score, s.fibers, 'General'
+         s.environmental_grade, s.environmental_score, s.fibers,
+         CASE LOWER(s.item_type)
+           WHEN 'shirt'    THEN 'Tops'
+           WHEN 't-shirt'  THEN 'Tops'
+           WHEN 'blouse'   THEN 'Tops'
+           WHEN 'sweater'  THEN 'Tops'
+           WHEN 'hoodie'   THEN 'Tops'
+           WHEN 'jacket'   THEN 'Outerwear'
+           WHEN 'coat'     THEN 'Outerwear'
+           WHEN 'jeans'    THEN 'Bottoms'
+           WHEN 'pants'    THEN 'Bottoms'
+           WHEN 'shorts'   THEN 'Bottoms'
+           WHEN 'skirt'    THEN 'Bottoms'
+           WHEN 'dress'    THEN 'Dresses'
+           WHEN 'scarf'    THEN 'Accessories'
+           ELSE 'General'
+         END
        FROM scans s
        WHERE s.user_id = $1
          AND s.id NOT IN (SELECT scan_id FROM wardrobe_items WHERE user_id = $1 AND scan_id IS NOT NULL)

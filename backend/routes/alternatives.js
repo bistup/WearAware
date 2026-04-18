@@ -361,7 +361,7 @@ router.get('/secondhand', async (req, res) => {
       searchQuery = parts.join(' ') || 'clothing';
     }
 
-    const searchResult = await ebayService.searchSecondHand(searchQuery, { limit });
+    const searchResult = await ebayService.searchSecondHand(searchQuery, { limit, gender });
 
     if (!searchResult.success) {
       return res.status(500).json({
