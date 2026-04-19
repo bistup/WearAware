@@ -3,12 +3,12 @@
 // camera screen that asks for brand and item type first, then lets you scan the label
 // connects to google vision api to read the text from clothing labels
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, StatusBar } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 import ItemTypePickerModal from '../../components/ItemTypePickerModal';
@@ -39,6 +39,17 @@ const CameraScreen = () => {
   // two-step flow state for full scan
   const [scanStep, setScanStep] = useState('label'); // 'label' or 'garment'
   const [labelScanData, setLabelScanData] = useState(null); // stores OCR result from step 1
+
+  useFocusEffect(useCallback(() => {
+    setScanStep('label');
+    setLabelScanData(null);
+    setShowPreScanForm(true);
+    setBrandName('');
+    setSelectedItemType(null);
+    setSelectedGender(null);
+    setIsSecondHand(false);
+    setLoading(false);
+  }, []));
 
   const getCategoryIcon = (category) => {
     switch (category) {
